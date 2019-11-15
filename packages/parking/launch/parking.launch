@@ -1,6 +1,6 @@
 <launch>
 	<arg name="veh" default="$(env VEHICLE_NAME)"/>
-	<arg name="ai_trafo_mode" default="cb" doc="'cb' for colo balance only; 'both' for color balance and linear trafo"/>
+	<arg name="ai_trafo_mode" default="cb" doc="'cb' for color balance only; 'both' for color balance and linear trafo"/>
 	<arg name="ai_interval" default="5" doc="interval with which the linear trafo gets updated. color balance is performed every second."/>
 	<arg name="verbose" default="false"/>
 
@@ -9,7 +9,7 @@
 		<arg name="veh" value="$(arg veh)"/>
 		<arg name="visualization" default="true" />
 		<!--arg name="verbose" value="$(arg verbose)" /-->
-    	<arg name="/camera/raw" default="true" />
+    <arg name="/camera/raw" default="true" />
 		<arg name="param_file_name" default="default" />
 		<arg name="line_detector_param_file_name" default="default" />
 		<arg name="anti_instagram" default="true" />
@@ -23,4 +23,4 @@
 		<arg name="/vehicle_avoidance/filter" default="true" />
 		<arg name="/vehicle_avoidance/control" default="true"/>
 	</include>
-</launch> 
+</launch>

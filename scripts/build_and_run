@@ -1,0 +1,5 @@
+#!/bin/bash
+
+docker -H manipanpan.local build -t proj-parking:v1 .
+
+docker -H manipanpan.local run -it --rm -v /data:/data --privileged --network=host proj-parking:v1

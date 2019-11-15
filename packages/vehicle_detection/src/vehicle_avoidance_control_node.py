@@ -132,6 +132,7 @@ class VehicleAvoidanceControlNode(object):
 		if Ts > 4:
 			self.v_rel = 0
 			if vehicle_pose_msg.rho.data < self.minimal_distance:
+				self.stopVehicle()
 				self.v = 0
 			else:
 				self.v = self.v_follower
@@ -165,6 +166,7 @@ class VehicleAvoidanceControlNode(object):
 			self.v = self.P + self.I + self.D
 
 			if self.v < 0 or vehicle_pose_msg.rho.data < self.minimal_distance:
+				self.stopVehicle()
 				self.v = 0
 
 			#self.rho_temp = rho
@@ -201,6 +203,14 @@ class VehicleAvoidanceControlNode(object):
 
 		self.car_cmd_pub.publish(car_cmd_msg_current)
 		#print(self.v_gain)
+
+
+	def stopVehicle(self):
+		car_cmd_msg_current = Twist2DStamped()
+		car_cmd_msg_current.header.stamp = rospy.Time.now()
+		car_cmd_msg_current.omega = 0
+		car_cmd_msg_current.v = 0
+		self.car_cmd_pub.publish(car_cmd_msg_current)
 
 
 # 	def publishCmd(self,stamp):

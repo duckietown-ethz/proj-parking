@@ -1,0 +1,7 @@
+#!/bin/bash
+
+dts duckiebot demo --demo_name all_drivers --duckiebot_name manipanpan --package_name duckiebot_interface --image duckietown/dt-duckiebot-interface:daffy
+
+dts duckiebot demo --demo_name all --duckiebot_name manipanpan --package_name car_interface --image duckietown/dt-car-interface:daffy
+
+dts duckiebot demo --demo_name lane_following --duckiebot_name manipanpan --package_name duckietown_demos --image duckietown/dt-core:daffy
