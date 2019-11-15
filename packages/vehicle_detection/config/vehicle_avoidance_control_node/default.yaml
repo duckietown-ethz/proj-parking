@@ -1,5 +1,5 @@
-desired_distance: 0.35
-minimal_distance: 0.40
+desired_distance: 0.20
+minimal_distance: 0.25
 Kp: 0.7
 Ki: 0.0
 Kd: 0.0

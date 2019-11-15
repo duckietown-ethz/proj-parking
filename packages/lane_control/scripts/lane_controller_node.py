@@ -483,7 +483,7 @@ class lane_controller(object):
         #
         
         # apply magic conversion factors
-        car_control_msg.v = - car_control_msg.v * self.velocity_to_m_per_s
+        car_control_msg.v = car_control_msg.v * self.velocity_to_m_per_s
         omega = omega * self.omega_to_rad_per_s
 
         if omega > self.omega_max: omega = self.omega_max
