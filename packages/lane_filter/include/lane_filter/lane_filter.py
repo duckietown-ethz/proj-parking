@@ -101,34 +101,6 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         s = entropy(belief.flatten())
         return s
 
-    # master18 different stuff
-    # def initialize(self):
-    #     self.beliefArray = []
-    #     for _ in range(self.num_belief):
-    #         n = self.d.shape[0] * self.d.shape[1]
-    #         b = np.ones(self.d.shape) * (1.0 / n)
-    #         self.beliefArray.append(b)
-    #
-    #     pos = np.empty(self.d.shape + (2,))
-    #     pos[:, :, 0] = self.d
-    #     pos[:, :, 1] = self.phi
-    #     # XXX: statement with no effect
-    #     # self.cov_0
-    #     RV = multivariate_normal(self.mean_0, self.cov_0)
-    #
-    #     n = pos.shape[0] * pos.shape[1]
-    #
-    #     gaussian = RV.pdf(pos) * 0.5  #+ 0.5/n
-    #
-    #     gaussian = gaussian / np.sum(gaussian.flatten())
-    #
-    #     uniform = np.ones(dtype='float32', shape=self.d.shape) * (1.0 / n)
-    #
-    #     a = 0.01
-    #     self.belief = a * gaussian + (1 - a) * uniform
-    #
-    #     assert_almost_equal(self.belief.flatten().sum(), 1.0)
-    #
 
     def predict(self, dt, v, w):
         delta_t = dt
@@ -184,27 +156,13 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             point_range = self.getSegmentDistance(segment)
             if point_range < self.range_est and point_range > self.range_est_min:
                 segmentsRangeArray[0].append(segment)
-                # print functions to help understand the functionality of the code
-                # print 'Adding segment to segmentsRangeArray[0] (Range: %s < 0.3)' % (point_range)
-                # print 'Printout of last segment added: %s' % self.getSegmentDistance(segmentsRangeArray[0][-1])
-                # print 'Length of segmentsRangeArray[0] up to now: %s' % len(segmentsRangeArray[0])
 
             # split segments ot different domains for the curvature estimation
             if self.curvature_res is not 0:
                 for i in range(self.curvature_res):
                     if point_range < self.range_arr[i + 1] and point_range > self.range_arr[i]:
                         segmentsRangeArray[i + 1].append(segment)
-                        # print functions to help understand the functionality of the code
-                        # print 'Adding segment to segmentsRangeArray[%i] (Range: %s < %s < %s)' % (i + 1, self.range_arr[i], point_range, self.range_arr[i + 1])
-                        # print 'Printout of last segment added: %s' % self.getSegmentDistance(segmentsRangeArray[i + 1][-1])
-                        # print 'Length of segmentsRangeArray[%i] up to now: %s' % (i + 1, len(segmentsRangeArray[i + 1]))
                         continue
-
-        # print functions to help understand the functionality of the code
-        # for i in range(len(segmentsRangeArray)):
-        #     print 'Length of segmentsRangeArray[%i]: %i' % (i, len(segmentsRangeArray[i]))
-        #     for j in range(len(segmentsRangeArray[i])):
-        #         print 'Range of segment %i: %f' % (j, self.getSegmentDistance(segmentsRangeArray[i][j]))
 
         return segmentsRangeArray
 
