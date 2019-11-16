@@ -5,7 +5,7 @@
 	<arg name="pkg_name" default="lane_control" doc="name of the package"/>
 	<arg name="node_name" default="lane_controller_node" doc="name of the node"/>
 
-        <group ns="$(arg veh)">
+  <group ns="$(arg veh)">
 	    <node  pkg="$(arg pkg_name)" type="$(arg node_name).py" name="$(arg node_name)" output="screen" required="true">
 	        <rosparam command="load" file="$(find lane_control)/config/$(arg node_name)/$(arg param_file_name).yaml"/>
 	    </node>

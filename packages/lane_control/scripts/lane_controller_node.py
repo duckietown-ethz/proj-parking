@@ -26,10 +26,10 @@ class lane_controller(object):
 
         # Publication
         self.pub_car_cmd = rospy.Publisher("~car_cmd", Twist2DStamped, queue_size=1)
-        
+
         # TODO-TAL this is just to acknowledge receiving a msg... We should remove it... (or replace this and the corresponding subscriber with a service)
         self.pub_actuator_limits_received = rospy.Publisher("~actuator_limits_received", BoolStamped, queue_size=1)
-        
+
         self.pub_radius_limit = rospy.Publisher("~radius_limit", BoolStamped, queue_size=1)
 
 
@@ -400,6 +400,7 @@ class lane_controller(object):
         prev_cross_track_err = self.cross_track_err
         prev_heading_err = self.heading_err
 
+        self.d_offset = 0.115
         self.cross_track_err = pose_msg.d - self.d_offset
         self.heading_err = pose_msg.phi
 
@@ -481,7 +482,7 @@ class lane_controller(object):
         # EDITED TO EFFORT THE BACKWARD LANE FOLLOWING
         #
         #
-        
+
         # apply magic conversion factors
         car_control_msg.v = - car_control_msg.v * self.velocity_to_m_per_s
         omega = omega * self.omega_to_rad_per_s

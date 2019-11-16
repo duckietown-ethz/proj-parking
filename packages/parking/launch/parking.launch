@@ -23,4 +23,10 @@
 		<arg name="/vehicle_avoidance/filter" default="true" />
 		<arg name="/vehicle_avoidance/control" default="true"/>
 	</include>
+
+	<!-- <include file="$(find duckietown_demos)/launch/lane_following.launch"/>
+
+	<group ns="$(arg veh)">
+		<node pkg="parking" type="set_doffset.py" name="set_doffset" output="screen"/>
+	</group> -->
 </launch>
