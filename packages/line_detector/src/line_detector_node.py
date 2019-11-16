@@ -126,7 +126,7 @@ class LineDetectorNode(object):
 
         if not self.active:
             return
-        
+
         try:
             self.processImage_(image_msg)
         finally:

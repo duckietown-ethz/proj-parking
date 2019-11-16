@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export BOTNAME=linuslingg
+export BOTNAME=manipanpan#linuslingg manipanpan
 
 docker -H "$BOTNAME".local build -t proj-parking:v1 .
 

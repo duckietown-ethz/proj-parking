@@ -63,8 +63,8 @@ class LineDetectorHSV(dtu.Configurable, LineDetectorInterface):
 
         # refine edge for certain color
         edge_color = cv2.bitwise_and(bw, self.edges)
-    
-        print("AREA : max : "+str(np.amax(bw))+" area?! "+str(np.sum(bw/255)))
+
+        #print("AREA : max : "+str(np.amax(bw))+" area?! "+str(np.sum(bw/255)))
 
         return bw, edge_color
 

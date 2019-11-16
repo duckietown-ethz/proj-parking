@@ -59,7 +59,7 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             'curvature_right',
             'curvature_left',
         ]
-
+        print("hello from initialization")
         configuration = copy.deepcopy(configuration)
         Configurable.__init__(self, param_names, configuration)
 
@@ -88,7 +88,9 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
 
         # Additional variables
         self.red_to_white = False
-        self.use_yellow = True
+        self.yellow_to_blue = False
+        self.use_yellow = False
+        self.use_blue = True
         self.range_est_min = 0
         self.filtered_segments = []
 
@@ -164,19 +166,21 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         segmentsRangeArray = map(list, [[]] * (self.curvature_res + 1))
         self.filtered_segments = []
         for segment in segments:
+            #if self.use_blue and segment.color = segment.BLUE: continue
+
             # Optional transform from RED to WHITE
-            if self.red_to_white and segment.color == segment.RED:
-                segment.color = segment.WHITE
+            if self.yellow_to_blue and segment.color == segment.YELLOW:
+                segment.color = 4#segment.BLUE
 
-            # Optional filtering out YELLOW
-            if not self.use_yellow and segment.color == segment.YELLOW: continue
-
-            # we don't care about RED ones for now
-            if segment.color != segment.WHITE and segment.color != segment.YELLOW:
+            # we don't care about RED nor YELLOW nor WHITE
+            if segment.color != 4:#segment.BLUE:
+                print("Color red, yellow or white so fuck you")
                 continue
             # filter out any segments that are behind us
             if segment.points[0].x < 0 or segment.points[1].x < 0:
                 continue
+            if segment.color == 4:
+                print("blue seen")
 
             self.filtered_segments.append(segment)
             # only consider points in a certain range from the Duckiebot for the position estimation
@@ -319,6 +323,7 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
 
     # generate a vote for one segment
     def generateVote(self, segment):
+        #print("Hello from generateVote")
         p1 = np.array([segment.points[0].x, segment.points[0].y])
         p2 = np.array([segment.points[1].x, segment.points[1].y])
         t_hat = (p2 - p1) / np.linalg.norm(p2 - p1)
@@ -336,7 +341,17 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         l_i = (l1 + l2) / 2
         d_i = (d1 + d2) / 2
         phi_i = np.arcsin(t_hat[1])
-        if segment.color == segment.WHITE:  # right lane is white
+
+        if segment.color == 4:#segment.BLUE:  # left lane is blue
+            if (p2[0] > p1[0]):  # left edge of blue lane
+                d_i = d_i - self.linewidth_yellow #Linus change to linewidth_blue
+                phi_i = -phi_i
+            else:  # right edge of white lane
+                d_i = -d_i
+            d_i = self.lanewidth / 2 - d_i
+            print("blue as a color so should calculate %.3f and %.3f" %(d_i, phi_i))
+
+        elif segment.color == segment.WHITE:  # right lane is white
             if(p1[0] > p2[0]):  # right edge of white lane
                 d_i = d_i - self.linewidth_white
             else:  # left edge of white lane
@@ -353,6 +368,9 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             else:  # right edge of white lane
                 d_i = -d_i
             d_i = self.lanewidth / 2 - d_i
+
+        else:
+            print("no color")
 
         # weight = distance
         weight = 1
