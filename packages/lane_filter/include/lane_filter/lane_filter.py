@@ -24,15 +24,20 @@ import copy
 
 import rospy
 
-#__all__ = [
-#    'LaneFilterHistogram',
-#]
 
+YELLOW = 2
 GREEN = 3
+BLUE = 4
+
+COLOR_MAPPING = {
+    'yellow': YELLOW,
+    'green': GREEN,
+    'blue': BLUE
+}
+
 
 class LaneFilterHistogram(Configurable, LaneFilterInterface):
     #"""LaneFilterHistogram"""
-
 
     def __init__(self, configuration):
         param_names = [
@@ -86,12 +91,16 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         self.initialize()
         self.updateRangeArray(self.curvature_res)
 
-
         # Additional variables
         self.red_to_white = False
-        self.use_green = True
+        self.is_dynamic = True
         self.range_est_min = 0
         self.filtered_segments = []
+
+        dynamic_color = rospy.get_param('/parking/lane_color', 'yellow')
+        assert dynamic_color in COLOR_MAPPING.keys()
+        self.dynamic_color = dynamic_color
+
 
     def getStatus(self):
         return LaneFilterInterface.GOOD
@@ -141,12 +150,13 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             if self.red_to_white and segment.color == segment.RED:
                 segment.color = segment.WHITE
 
-            # Optional filtering out GREEN
-            if not self.use_green and segment.color == GREEN: continue
+            # Optional filtering out the dynamic color
+            if not self.is_dynamic and segment.color == self.dynamic_color: continue
 
             # we don't care about RED ones for now
-            if segment.color != segment.WHITE and segment.color != GREEN:
+            if segment.color != segment.WHITE and segment.color != self.dynamic_color:
                 continue
+
             # filter out any segments that are behind us
             if segment.points[0].x < 0 or segment.points[1].x < 0:
                 continue
@@ -305,8 +315,8 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
                 phi_i = -phi_i
             d_i = d_i - self.lanewidth / 2
 
-        elif segment.color == GREEN:  # left lane is green
-            if (p2[0] > p1[0]):  # left edge of green lane
+        elif segment.color == self.dynamic_color:
+            if (p2[0] > p1[0]):  # left edge of lane
                 d_i = d_i - self.linewidth_yellow
                 phi_i = -phi_i
             else:  # right edge of white lane
