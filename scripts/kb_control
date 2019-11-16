@@ -1,0 +1,5 @@
+#!/bin/bash
+
+export BOTNAME=linuslingg
+
+dts duckiebot keyboard_control $BOTNAME
