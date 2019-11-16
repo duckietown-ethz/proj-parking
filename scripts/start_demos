@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export BOTNAME=linuslingg
+export BOTNAME=manipanpan
 
 dts duckiebot demo --demo_name all_drivers --duckiebot_name $BOTNAME --package_name duckiebot_interface --image duckietown/dt-duckiebot-interface:daffy
 
@@ -8,6 +8,6 @@ sleep 10
 
 dts duckiebot demo --demo_name all --duckiebot_name $BOTNAME --package_name car_interface --image duckietown/dt-car-interface:daffy
 
-sleep 10
+# sleep 10
 
-dts duckiebot demo --demo_name lane_following --duckiebot_name $BOTNAME --package_name duckietown_demos --image duckietown/dt-core:daffy
+# dts duckiebot demo --demo_name lane_following --duckiebot_name $BOTNAME --package_name duckietown_demos --image duckietown/dt-core:daffy
