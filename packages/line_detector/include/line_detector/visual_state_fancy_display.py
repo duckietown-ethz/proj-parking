@@ -25,7 +25,8 @@ def draw_segment_list_on_image(bgr, segment_list, width):
     colors2bgr = {Segment.WHITE: dtu.ColorConstants.BGR_WHITE,
               Segment.RED: dtu.ColorConstants.BGR_RED,
               Segment.YELLOW: dtu.ColorConstants.BGR_YELLOW,
-              Segment.GREEN: dtu.ColorConstants.BGR_GREEN}
+              3: dtu.ColorConstants.BGR_GREEN, #Segment.GREEN
+              4: dtu.ColorConstants.BGR_BLUE}
     shape = bgr.shape[:2]
     
     for segment in segment_list.segments:

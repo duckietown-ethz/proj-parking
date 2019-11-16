@@ -26,6 +26,8 @@ class LineDetectorHSV(dtu.Configurable, LineDetectorInterface):
             'hsv_red4',
             'hsv_green1',
             'hsv_green2',
+            'hsv_blue1',
+            'hsv_blue2',
             'dilation_kernel_size',
             'canny_thresholds',
             'hough_threshold',
@@ -47,6 +49,8 @@ class LineDetectorHSV(dtu.Configurable, LineDetectorInterface):
             bw = cv2.bitwise_or(bw1, bw2)
         elif color == 'green': #Added for parking project viciopoli01
             bw = cv2.inRange(self.hsv, self.hsv_green1, self.hsv_green2)
+        elif color == 'blue':
+            bw = cv2.inRange(self.hsv, self.hsv_blue1, self.hsv_blue2)
         else:
             raise Exception('Error: Undefined color strings...')
 
@@ -55,8 +59,12 @@ class LineDetectorHSV(dtu.Configurable, LineDetectorInterface):
                                            (self.dilation_kernel_size, self.dilation_kernel_size))
         bw = cv2.dilate(bw, kernel)
 
+
+
         # refine edge for certain color
         edge_color = cv2.bitwise_and(bw, self.edges)
+    
+        print("AREA : max : "+str(np.amax(bw))+" area?! "+str(np.sum(bw/255)))
 
         return bw, edge_color
 

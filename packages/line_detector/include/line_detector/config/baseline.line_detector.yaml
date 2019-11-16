@@ -19,3 +19,5 @@ parameters:
       hsv_red4:    [180,255,255]
       hsv_green1:  [45, 100, 100]
       hsv_green2:  [75, 255, 255]
+      hsv_blue1:    [110, 100, 100]
+      hsv_blue2:    [130, 255, 255]

@@ -24,6 +24,8 @@ class LineDetector2Dense(dtu.Configurable, LineDetectorInterface):
             'hsv_red4',
             'hsv_green1',
             'hsv_green2',
+            'hsv_blue1',
+            'hsv_blue2',
             'dilation_kernel_size',
             'canny_thresholds',
             'sobel_threshold',
@@ -43,6 +45,8 @@ class LineDetector2Dense(dtu.Configurable, LineDetectorInterface):
             bw = cv2.bitwise_or(bw1, bw2)
         elif color == 'green': #Added for parking project viciopoli01
             bw = cv2.inRange(self.hsv, self.hsv_green1, self.hsv_green2)
+        elif color == 'blue':
+            bw = cv2.inRange(self.hsv, self.hsv_blue1, self.hsv_blue2)
         else:
             raise Exception('Error: Undefined color strings...')
 

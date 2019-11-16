@@ -30,6 +30,8 @@ class LineDetectorNode(object):
         #added for parking viciopoli01
         self.detector.hsv_green1 = np.array(rospy.get_param('~hsv_green1'))
         self.detector.hsv_green2 = np.array(rospy.get_param('~hsv_green2'))
+        self.detector.hsv_blue1 = np.array(rospy.get_param('~hsv_blue1'))
+        self.detector.hsv_blue2 = np.array(rospy.get_param('~hsv_blue2'))
 
         self.detector.dilation_kernel_size = rospy.get_param('~dilation_kernel_size')
         self.detector.canny_thresholds = rospy.get_param('~canny_thresholds')
@@ -118,12 +120,14 @@ class LineDetectorNode(object):
         lines_red, normals_red = self.detector.detectLines('red')
         #added for parking viciopoli01
         lines_green, normals_green = self.detector.detectLines('green')
+        lines_blue, normals_blue = self.detector.detectLines('blue')
 
         # Draw lines and normals
         self.detector.drawLines(lines_white, (0,0,0))
         self.detector.drawLines(lines_yellow, (255,0,0))
         self.detector.drawLines(lines_red, (0,255,0))
-        self.detector.drawLines(lines_green (0,255,0))
+        self.detector.drawLines(lines_green, (0,255,0))
+        self.detector.drawLines(lines_blue, (0,0,255))
         #self.detector.drawNormals(lines_white, normals_white)
         #self.detector.drawNormals(lines_yellow, normals_yellow)
         #self.detector.drawNormals(lines_red, normals_red)
@@ -137,21 +141,23 @@ class LineDetectorNode(object):
             #rospy.loginfo("[LineDetectorNode] number of white lines = %s" %(len(lines_white)))
             lines_normalized_white = ((lines_white + arr_cutoff) * arr_ratio)
             segmentList.segments.extend(self.toSegmentMsg(lines_normalized_white, normals_white, Segment.WHITE))
-            print("THIS IS WHAT THEY MEAN FOR COLOR : "+str(Segment.WHITE))
         if len(lines_yellow)>0:
-            """"""
             #rospy.loginfo("[LineDetectorNode] number of yellow lines = %s" %(len(lines_yellow)))
             lines_normalized_yellow = ((lines_yellow + arr_cutoff) * arr_ratio)
             segmentList.segments.extend(self.toSegmentMsg(lines_normalized_yellow, normals_yellow, Segment.YELLOW))
         if len(lines_red)>0:
-            rospy.loginfo("[LineDetectorNode] number of red lines = %s" %(len(lines_red)))
+            #rospy.loginfo("[LineDetectorNode] number of red lines = %s" %(len(lines_red)))
             lines_normalized_red = ((lines_red + arr_cutoff) * arr_ratio)
             segmentList.segments.extend(self.toSegmentMsg(lines_normalized_red, normals_red, Segment.RED))
         #added for parking viciopoli01
         if len(lines_green) > 0:
-            rospy.loginfo("[LineDetectorNode] number of green lines = %s" %(len(lines_green)))
+            #rospy.loginfo("[LineDetectorNode] number of green lines = %s" %(len(lines_green)))
             lines_normalized_green = ((lines_green + arr_cutoff) * arr_ratio)
-            segmentList.segments.extend(self.toSegmentMsg(lines_normalized_green, normals_green, 3))# TODO change the color to green
+            segmentList.segments.extend(self.toSegmentMsg(lines_normalized_green, normals_green, 3))
+        if len(lines_blue) > 0:
+            #rospy.loginfo("[LineDetectorNode] number of blue lines = %s" %(len(lines_blue)))
+            lines_normalized_blue = ((lines_blue + arr_cutoff) * arr_ratio)
+            segmentList.segments.extend(self.toSegmentMsg(lines_normalized_blue, normals_blue, 4))
 
         # Publish segmentList
         self.pub_lines.publish(segmentList)
