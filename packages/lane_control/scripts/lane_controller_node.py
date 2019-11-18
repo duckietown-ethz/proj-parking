@@ -56,6 +56,7 @@ class lane_controller(object):
 
         self.sub_wheels_cmd_executed = rospy.Subscriber("~wheels_cmd_executed", WheelsCmdStamped, self.updateWheelsCmdExecuted, queue_size=1)
         self.sub_actuator_limits = rospy.Subscriber("~actuator_limits", Twist2DStamped, self.updateActuatorLimits, queue_size=1)
+        self.parking = rospy.Subscriber("~parking_free", BoolStamped, self.parking_free, queue_size=1)
 
         # FSM
         self.sub_switch = rospy.Subscriber("~switch",BoolStamped, self.cbSwitch,  queue_size=1)     # for this topic, no remapping is required, since it is directly defined in the namespace lane_controller_node by the fsm_node (via it's default.yaml file)
@@ -82,6 +83,10 @@ class lane_controller(object):
 
         self.stop_line_distance = 999
         self.stop_line_detected = False
+
+    def parking_free(self,data):
+        if(data==True):
+            self.sendStop()
 
     def cbStopLineReading(self, msg):
         self.stop_line_distance = np.sqrt(msg.stop_line_point.x**2 + msg.stop_line_point.y**2 + msg.stop_line_point.z**2)
