@@ -93,6 +93,7 @@ class lane_controller(object):
             queue_size=1
         )
 
+
         # FSM
         self.sub_switch = rospy.Subscriber(
             "~switch",
@@ -120,7 +121,6 @@ class lane_controller(object):
         self.stop_line_distance = 999
         self.stop_line_detected = False
 
-
     def cbDoffset(self, msg):
         rospy.set_param("~d_offset", msg.data)
         self.d_offset = msg.data
@@ -134,7 +134,6 @@ class lane_controller(object):
         self.sendStop()
         rospy.sleep(num_sec)
         self.active = True
-
 
     def cbStopLineReading(self, msg):
         self.stop_line_distance = np.sqrt(
@@ -393,6 +392,7 @@ class lane_controller(object):
 
 
     def updatePose(self, pose_msg):
+
         self.lane_reading = pose_msg
 
         # Calculating the delay image processing took

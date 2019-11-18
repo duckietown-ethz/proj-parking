@@ -14,7 +14,6 @@ import numpy as np
 
 from duckietown import DTROS
 
-
 class FreeParking(DTROS):
     """
         This node publishs a boolean value
@@ -31,7 +30,6 @@ class FreeParking(DTROS):
         rospy.set_param('/'+self.veh+'/camera_node/exposure_mode', 'off')
 
         self.updateParameters()
-
         # defining the topic names
         free_topic = "~/"+self.veh+"/free_parking/"
         out_image_topic = "~/"+self.veh+"/camera_node/free_parking_image/compressed"
@@ -56,6 +54,7 @@ class FreeParking(DTROS):
 
     def detectColor(self,data):
         img = self.readImage(data)
+
         img = img[160:,:120]
 
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -65,10 +64,12 @@ class FreeParking(DTROS):
         upper_bound = self.hsv_green2 if self.detect_green else self.hsv_blue2
         bw = cv2.inRange(hsv, lower_bound, upper_bound)
 
+
         # binary dilation
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                            (self.dilation_kernel_size, self.dilation_kernel_size))
         bw = cv2.dilate(bw, kernel)
+
         color_count = np.sum(bw/255)
         detected = (color_count > self.detection_threshold)
 
