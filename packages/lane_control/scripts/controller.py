@@ -42,6 +42,10 @@ class Controller():
         y =     (self.c1 * d_est + self.c2 * phi_est)
         err = ref - y
 
+        print(d_ref)
+        print(d_est)
+        print(phi_ref)
+        print(phi_est)
         # PI-Controller
         C_P = self.k_P * err
         omega = C_P + self.C_I

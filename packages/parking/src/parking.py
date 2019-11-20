@@ -15,7 +15,7 @@ class MyNode(DTROS):
 
         self.veh_name = rospy.get_namespace().strip("/")
 
-        offset_mode = 2
+        offset_mode = 0
         #offset_mode = int(os.environ['OFFSET'])
         if offset_mode == 0:
             self.offset = 0.0
@@ -28,6 +28,8 @@ class MyNode(DTROS):
 
         # construct publisher
         self.pub = rospy.Publisher('lane_controller_node/doffset', Float64, queue_size=1)
+        #self.offset =  0.2175
+
         #self.sub = rospy.Subscriber('/%s/vehicle_detection_node/detection' %self.veh_name,BoolStamped, self.cbOvertake, queue_size=1)
 
     def cbOvertake(self,msg):
@@ -48,7 +50,7 @@ class MyNode(DTROS):
             # rospy.sleep(0.5)
             # self.offset =  0.2175/4*1 #write
             # rospy.sleep(0.5)
-            #self.offset =  0.2
+            self.offset =  0.0
 
     def run(self):
         # publish message every 0.1 second
