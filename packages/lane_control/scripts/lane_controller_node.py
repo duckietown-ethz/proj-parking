@@ -89,7 +89,7 @@ class lane_controller(object):
     def cbDoffset(self, msg):
         rospy.set_param("~d_offset",msg.data)
         self.d_offset = msg.data
-        print(self.d_offset)
+        #print(self.d_offset)
 
     def cbStopLineReading(self, msg):
         self.stop_line_distance = np.sqrt(msg.stop_line_point.x**2 + msg.stop_line_point.y**2 + msg.stop_line_point.z**2)
