@@ -5,6 +5,7 @@ import numpy as np
 import rospy
 from duckietown_msgs.msg import Twist2DStamped, LanePose, WheelsCmdStamped, BoolStamped, FSMState, StopLineReading
 import time
+from std_msgs.msg import Float64
 import numpy as np
 
 class lane_controller(object):
@@ -26,10 +27,10 @@ class lane_controller(object):
 
         # Publication
         self.pub_car_cmd = rospy.Publisher("~car_cmd", Twist2DStamped, queue_size=1)
-        
+
         # TODO-TAL this is just to acknowledge receiving a msg... We should remove it... (or replace this and the corresponding subscriber with a service)
         self.pub_actuator_limits_received = rospy.Publisher("~actuator_limits_received", BoolStamped, queue_size=1)
-        
+
         self.pub_radius_limit = rospy.Publisher("~radius_limit", BoolStamped, queue_size=1)
 
 
@@ -66,6 +67,8 @@ class lane_controller(object):
 
         self.sub_fsm_mode = rospy.Subscriber("~fsm_mode", FSMState, self.cbMode, queue_size=1)
 
+        self.sub_doffset = rospy.Subscriber("~doffset",Float64, self.cbDoffset,  queue_size=1)     # new suscriber for adjusting d_offset
+
         self.msg_radius_limit = BoolStamped()
         self.msg_radius_limit.data = self.use_radius_limit
         self.pub_radius_limit.publish(self.msg_radius_limit)
@@ -82,6 +85,11 @@ class lane_controller(object):
 
         self.stop_line_distance = 999
         self.stop_line_detected = False
+
+    def cbDoffset(self, msg):
+        rospy.set_param("~d_offset",msg.data)
+        self.d_offset = msg.data
+        #print(self.d_offset)
 
     def cbStopLineReading(self, msg):
         self.stop_line_distance = np.sqrt(msg.stop_line_point.x**2 + msg.stop_line_point.y**2 + msg.stop_line_point.z**2)
