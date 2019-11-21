@@ -15,8 +15,8 @@ class MyNode(DTROS):
 
         self.veh_name = rospy.get_namespace().strip("/")
 
-        offset_mode = 2
-        #offset_mode = int(os.environ['OFFSET'])
+        offset_mode = 0
+        offset_mode = int(os.environ['OFFSET'])
         if offset_mode == 0:
             self.offset = 0.0
         elif offset_mode == 1:
@@ -33,22 +33,22 @@ class MyNode(DTROS):
     def cbOvertake(self,msg):
         if msg.data:
             print "detected vehicle"
-            # self.offset =  0.2175/4*1 #write
-            # rospy.sleep(0.5)
-            # self.offset =  0.2175/4*2 #write
-            # rospy.sleep(0.5)
-            # self.offset =  0.2175/4*3 #write
-            # rospy.sleep(0.5)
-            # self.offset =  0.2175/4*4 #write
-            # rospy.sleep(7.)
-            # print "going back to the right lane"
-            # self.offset =  0.2175/4*3 #write
-            # rospy.sleep(0.5)
-            # self.offset =  0.2175/4*2 #write
-            # rospy.sleep(0.5)
-            # self.offset =  0.2175/4*1 #write
-            # rospy.sleep(0.5)
-            #self.offset =  0.2
+            self.offset =  0.2175/4*1 #write
+            rospy.sleep(0.5)
+            self.offset =  0.2175/4*2 #write
+            rospy.sleep(0.5)
+            self.offset =  0.2175/4*3 #write
+            rospy.sleep(0.5)
+            self.offset =  0.2175/4*4 #write
+            rospy.sleep(7.)
+            print "going back to the right lane"
+            self.offset =  0.2175/4*3 #write
+            rospy.sleep(0.5)
+            self.offset =  0.2175/4*2 #write
+            rospy.sleep(0.5)
+            self.offset =  0.2175/4*1 #write
+            rospy.sleep(0.5)
+            self.offset =  0.0
 
     def run(self):
         # publish message every 0.1 second
