@@ -37,17 +37,20 @@ class FreeParking(DTROS):
         out_image_topic = "~/"+self.veh+"/camera_node/free_parking_image/compressed"
         camera_topic="/"+self.veh+"/camera_node/image/compressed"
 
-        # init the publisher
-        self.is_free = rospy.Publisher(free_topic, BoolStamped, queue_size=1)
-        #self.out_image = rospy.Publisher(out_image_topic, CompressedImage, queue_size=1)
-        #Setup the camera subscriber
+        # Publishers
+        self.is_free_pub = rospy.Publisher(free_topic, BoolStamped, queue_size=1)
+
+        # Subscribers
         self.camera = rospy.Subscriber(camera_topic, CompressedImage, self.detectGreen)
 
         self.bridge = CvBridge()
-
-        self.hsv_green1=np.array([45, 100, 100])
-        self.hsv_green2=np.array([75, 255, 255])
-        self.dilation_kernel_size=3
+        self.detection_threshold = 400
+        self.detect_green = True
+        self.hsv_green1 = np.array([45, 100, 100])
+        self.hsv_green2 = np.array([75, 255, 255])
+        self.hsv_blue1 = np.array([100, 100, 100])
+        self.hsv_blue2 = np.array([128, 255, 255])
+        self.dilation_kernel_size = 3
         self.edges = np.empty(0)
 
 
@@ -58,7 +61,9 @@ class FreeParking(DTROS):
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         #detect green
-        bw = cv2.inRange(hsv, self.hsv_green1, self.hsv_green2)
+        lower_bound = self.hsv_green1 if self.detect_green else self.hsv_blue1
+        upper_bound = self.hsv_green2 if self.detect_green else self.hsv_blue2
+        bw = cv2.inRange(hsv, lower_bound, upper_bound)
 
         # binary dilation
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
@@ -67,16 +72,11 @@ class FreeParking(DTROS):
 
         msg = BoolStamped()
         msg.header.stamp=rospy.Time.now()
-
-        if np.sum(bw/255)>300:
-            msg.data=True
-            self.is_free.publish(msg)
-        else :
-            msg.data=False
-            self.is_free.publish(msg)
+        msg.data = (np.sum(bw/255) > self.detection_threshold)
+        self.is_free_pub.publish(msg)
 
 
-    def readImage(self,msg_image):
+    def readImage(self, msg_image):
         """Convert images to OpenCV images
             Args:
                 msg_image (:obj:`CompressedImage`) the image from the camera node
