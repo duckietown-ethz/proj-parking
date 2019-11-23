@@ -71,6 +71,12 @@ class lane_controller(object):
             self.cbStopLineReading,
             queue_size=1
         )
+        self.sub_doffset = rospy.Subscriber(
+            "~doffset",
+            Float64,
+            self.cbDoffset,
+            queue_size=1
+        )
 
         # FSM
         self.sub_switch = rospy.Subscriber(
@@ -98,6 +104,12 @@ class lane_controller(object):
 
         self.stop_line_distance = 999
         self.stop_line_detected = False
+
+
+    def cbDoffset(self, msg):
+        rospy.set_param("~d_offset", msg.data)
+        self.d_offset = msg.data
+        rospy.loginfo('[%s] Updating d_offset to %f' % (self.node_name, self.d_offset))
 
 
     def cbStopLineReading(self, msg):

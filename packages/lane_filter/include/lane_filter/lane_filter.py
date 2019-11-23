@@ -97,14 +97,15 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         self.range_est_min = 0
         self.filtered_segments = []
 
+        self.dynamic_color = YELLOW
         self.updateDynamicColor()
 
 
     def updateDynamicColor(self):
-        old_color = self.dynamic_color if self.dynamic_color else YELLOW
-        dynamic_color = rospy.get_param('/parking/lane_color', 'yellow')
-        assert dynamic_color in COLOR_MAPPING.keys()
-        self.dynamic_color = COLOR_MAPPING[dynamic_color]
+        old_color = self.dynamic_color
+        dynamic_color_str = rospy.get_param('/parking/lane_color', 'yellow')
+        assert dynamic_color_str in COLOR_MAPPING.keys()
+        self.dynamic_color = COLOR_MAPPING[dynamic_color_str]
 
         if old_color != self.dynamic_color:
             rospy.loginfo('LaneFilter color changed to %d' % self.dynamic_color)

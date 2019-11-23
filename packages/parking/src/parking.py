@@ -4,10 +4,15 @@ import os
 import rospy
 from duckietown import DTROS
 from std_msgs.msg import String, Float64
-from duckietown_msgs.msg import BoolStamped
+from duckietown_msgs.msg import BoolStamped, Twist2DStamped
 
+"""
+#############################
+########### STATES ##########
+#############################
+"""
 
-# States
+INACTIVE = 0
 ENTERING_PARKING_LOT = 1
 SEARCHING = 2
 IS_PARKING = 3
@@ -15,8 +20,24 @@ IS_PARKED = 4
 EXITING_PARKING_SPOT = 5
 EXITING_PARKING_LOT = 6
 
+ALL_STATES = [
+    INACTIVE,
+    ENTERING_PARKING_LOT,
+    SEARCHING,
+    IS_PARKING,
+    IS_PARKED,
+    EXITING_PARKING_SPOT,
+    EXITING_PARKING_LOT
+]
+
 
 class ParkingNode(DTROS):
+
+    """
+    #############################
+    ####### INITIALIZATION ######
+    #############################
+    """
 
     def __init__(self, node_name):
         # initialize the DTROS parent class
@@ -26,16 +47,6 @@ class ParkingNode(DTROS):
         self.node_name = 'ParkingNode'
         self.state = SEARCHING
 
-        offset_mode = 2
-        if offset_mode == 0:
-            self.offset = 0.0
-        elif offset_mode == 1:
-            self.offset = 0.2175    # lane distance
-        elif offset_mode == 2:
-            self.offset = 0.115     # middle of the road
-        else:
-            self.offset = 0.0
-
         # Publishers
         self.d_offset_pub = rospy.Publisher(
             'lane_controller_node/doffset',
@@ -44,32 +55,47 @@ class ParkingNode(DTROS):
         )
 
         # Subscribers
-        self.vehicle_detection_sub = rospy.Subscriber(
-            '/%s/vehicle_detection_node/detection' % self.veh_name,
-            BoolStamped,
-            self.cbOvertake,
+        self.vehicle_avoidance_wheel_cmd_sub = rospy.Subscriber(
+            '/%s/vehicle_detection_node/car_cmd' % self.veh_name,
+            Twist2DStamped,
+            self.cbVehicleAvoidanceControl,
             queue_size=1
         )
         self.free_parking_sub = rospy.Subscriber(
             '/%s/free_parking' % self.veh_name,
             BoolStamped,
-            self.parkingFreeCb,
+            self.cbParkingFree,
             queue_size=1
         )
 
-        rospy.loginfo('%s initialized' % self.node_name)
+        rospy.loginfo('[%s] Initialized' % self.node_name)
 
+    """
+    #############################
+    ######### CALLBACKS #########
+    #############################
+    """
 
-    def parkingFreeCb(self, msg):
+    def cbParkingFree(self, msg):
         # We only care about finding a free spot if we're searching
         if self.state != SEARCHING:
             return
 
         found_free_parking_spot = msg.data == True
         if found_free_parking_spot:
-            rospy.loginfo('%s found a free parking spot!' % self.node_name)
+            rospy.loginfo('[%s] found a free parking spot!' % self.node_name)
             self.transitionToNextState()
 
+
+    def cbVehicleAvoidanceControl(self, msg):
+        if msg.data:
+            rospy.loginfo('[%s] detected vehicle' % self.node_name)
+
+    """
+    #############################
+    ###### HELPER FUNCTIONS #####
+    #############################
+    """
 
     def transitionToNextState(self):
         current_state = self.state
@@ -79,33 +105,15 @@ class ParkingNode(DTROS):
             rospy.set_param('/parking/lane_color', 'blue')
             self.updateDoffset(0)
 
-        self.state = next_state
+        if next_state in ALL_STATES:
+            self.state = next_state
+        else:
+            self.state = INACTIVE
 
 
     def updateDoffset(self, new_offset):
-        rospy.loginfo('%s publishing new d_offset: %f' % (self.node_name, new_offset))
+        rospy.loginfo('[%s] publishing new d_offset: %f' % (self.node_name, new_offset))
         self.d_offset_pub.publish(new_offset)
-
-
-    def cbOvertake(self, msg):
-        if msg.data:
-            rospy.loginfo('[%s] detected vehicle' % self.node_name)
-            # self.offset =  0.2175/4*1 #write
-            # rospy.sleep(0.5)
-            # self.offset =  0.2175/4*2 #write
-            # rospy.sleep(0.5)
-            # self.offset =  0.2175/4*3 #write
-            # rospy.sleep(0.5)
-            # self.offset =  0.2175/4*4 #write
-            # rospy.sleep(7.)
-            # print "going back to the right lane"
-            # self.offset =  0.2175/4*3 #write
-            # rospy.sleep(0.5)
-            # self.offset =  0.2175/4*2 #write
-            # rospy.sleep(0.5)
-            # self.offset =  0.2175/4*1 #write
-            # rospy.sleep(0.5)
-            self.offset =  0.0
 
 
 if __name__ == '__main__':
