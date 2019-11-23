@@ -163,6 +163,12 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         segmentsRangeArray = map(list, [[]] * (self.curvature_res + 1))
         self.filtered_segments = []
         for segment in segments:
+            # Parking: filter out WHITE if tracking BLUE or GREEN
+            if self.is_dynamic and \
+            self.dynamic_color in [GREEN, BLUE] and \
+            segment.color == segment.WHITE:
+                continue
+
             # Optional transform from RED to WHITE
             if self.red_to_white and segment.color == segment.RED:
                 segment.color = segment.WHITE

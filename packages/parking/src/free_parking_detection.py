@@ -41,20 +41,20 @@ class FreeParking(DTROS):
         self.is_free_pub = rospy.Publisher(free_topic, BoolStamped, queue_size=1)
 
         # Subscribers
-        self.camera = rospy.Subscriber(camera_topic, CompressedImage, self.detectGreen)
+        self.camera = rospy.Subscriber(camera_topic, CompressedImage, self.detectColor)
 
         self.bridge = CvBridge()
-        self.detection_threshold = 400
+        self.detection_threshold = 300
         self.detect_green = True
         self.hsv_green1 = np.array([45, 100, 100])
         self.hsv_green2 = np.array([75, 255, 255])
-        self.hsv_blue1 = np.array([100, 100, 100])
-        self.hsv_blue2 = np.array([128, 255, 255])
+        self.hsv_blue1 = np.array([90, 100, 100])
+        self.hsv_blue2 = np.array([150, 255, 255])
         self.dilation_kernel_size = 3
         self.edges = np.empty(0)
 
 
-    def detectGreen(self,data):
+    def detectColor(self,data):
         img = self.readImage(data)
         img = img[160:,:120]
 
@@ -69,11 +69,16 @@ class FreeParking(DTROS):
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                            (self.dilation_kernel_size, self.dilation_kernel_size))
         bw = cv2.dilate(bw, kernel)
+        color_count = np.sum(bw/255)
+        detected = (color_count > self.detection_threshold)
 
         msg = BoolStamped()
-        msg.header.stamp=rospy.Time.now()
-        msg.data = (np.sum(bw/255) > self.detection_threshold)
+        msg.header.stamp = rospy.Time.now()
+        msg.data = detected
         self.is_free_pub.publish(msg)
+
+        if detected:
+            rospy.loginfo('FreeParking detected color %s' % ('green' if self.detect_green else 'blue'))
 
 
     def readImage(self, msg_image):

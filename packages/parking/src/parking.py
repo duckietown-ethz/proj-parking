@@ -66,7 +66,7 @@ class ParkingNode(DTROS):
 
         # Subscribers
         self.vehicle_avoidance_wheel_cmd_sub = rospy.Subscriber(
-            '/%s/vehicle_detection_node/car_cmd' % self.veh_name,
+            '/%s/vehicle_avoidance_control_node/car_cmd' % self.veh_name,
             Twist2DStamped,
             self.cbVehicleAvoidanceControl,
             queue_size=1
@@ -97,10 +97,14 @@ class ParkingNode(DTROS):
             self.transitionToNextState()
 
 
-    def cbVehicleAvoidanceControl(self, msg):
-        twist = msg.data
+    def cbVehicleAvoidanceControl(self, twist):
+        # We will only stop for another Duckiebot in certain states
+        if self.state not in [SEARCHING, IS_PARKED]:
+            return
+
         if twist.v == 0 and twist.omega == 0:
             rospy.loginfo('[%s] Vehicle avoidance wants to stop!' % self.node_name)
+            # self.pauseOperations(10)
 
     """
     #############################
@@ -113,9 +117,9 @@ class ParkingNode(DTROS):
         next_state = self.state + 1
 
         if current_state == SEARCHING and next_state == IS_PARKING:
-            self.updateLaneFilterColor('blue')
-            self.updateDoffset(0)
-            self.pauseOperations(10)
+            self.updateLaneFilterColor('blue') # Follow blue lane, not yellow
+            self.updateDoffset(0) # Follow the center of the lane
+            self.pauseOperations(10) # Pause for 10 sec before continuing
         elif current_state == IS_PARKING:
             pass
         else:
@@ -139,6 +143,7 @@ class ParkingNode(DTROS):
 
 
     def updateLaneFilterColor(self, desired_color):
+        # desired_color should be one of 'yellow', 'green', 'blue'
         rospy.loginfo('[%s] Publishing new color for lane_filter: %s' % (self.node_name, desired_color))
         self.lane_filter_color_pub.publish(desired_color)
 
