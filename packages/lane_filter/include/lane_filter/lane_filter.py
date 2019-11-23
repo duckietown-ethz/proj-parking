@@ -97,13 +97,22 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         self.range_est_min = 0
         self.filtered_segments = []
 
+        self.updateDynamicColor()
+
+
+    def updateDynamicColor(self):
+        old_color = self.dynamic_color if self.dynamic_color else YELLOW
         dynamic_color = rospy.get_param('/parking/lane_color', 'yellow')
         assert dynamic_color in COLOR_MAPPING.keys()
-        self.dynamic_color = dynamic_color
+        self.dynamic_color = COLOR_MAPPING[dynamic_color]
+
+        if old_color != self.dynamic_color:
+            rospy.loginfo('LaneFilter color changed to %d' % self.dynamic_color)
 
 
     def getStatus(self):
         return LaneFilterInterface.GOOD
+
 
     def get_entropy(self):
         belief = self.beliefArray[0]
@@ -141,8 +150,11 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
                 return
             self.beliefArray[k] = s_belief / np.sum(s_belief)
 
+
     # prepare the segments for the creation of the belief arrays
     def prepareSegments(self, segments):
+        self.updateDynamicColor()
+
         segmentsRangeArray = map(list, [[]] * (self.curvature_res + 1))
         self.filtered_segments = []
         for segment in segments:
@@ -191,6 +203,7 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             for i in range(len(self.range_arr)):
                 self.range_arr[i] = self.range_min + (i * range_diff)
 
+
     # generate the belief arrays
     def update(self, segments):
         # prepare the segments for each belief array
@@ -207,9 +220,7 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
                     self.beliefArray[i] = self.beliefArray[i] / np.sum(self.beliefArray[i])
 
 
-
     def generate_measurement_likelihood(self, segments):
-
         # initialize measurement likelihood to all zeros
         measurement_likelihood = np.zeros(self.d.shape)
 
@@ -230,6 +241,7 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             np.sum(measurement_likelihood)
         return measurement_likelihood
 
+
     # get the maximal values d_max and phi_max from the belief array. The first belief array (beliefArray[0]) includes the actual belief of the Duckiebots position. The further belief arrays are used for the curvature estimation.
     def getEstimate(self):
         d_max = np.zeros(self.curvature_res + 1)
@@ -241,12 +253,14 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             phi_max[i] = self.phi_min + (maxids[1] + 0.5) * self.delta_phi
         return [d_max, phi_max]
 
+
     def get_estimate(self):
         d, phi = self.getEstimate()
         res = OrderedDict()
         res['d'] = d[0]
         res['phi'] = phi[0]
         return res
+
 
     # get the curvature estimation
     def getCurvature(self, d_max, phi_max):
@@ -272,6 +286,7 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             print "Curvature estimation: straight lane"
             return 0
 
+
     # return the maximal value of the beliefArray
     def getMax(self):
         return self.beliefArray[0].max()
@@ -285,6 +300,7 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         RV = multivariate_normal(self.mean_0, self.cov_0)
         for i in range(self.curvature_res + 1):
             self.beliefArray[i] = RV.pdf(pos)
+
 
     # generate a vote for one segment
     def generateVote(self, segment):
@@ -327,6 +343,7 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         weight = 1
         return d_i, phi_i, l_i, weight
 
+
     def get_inlier_segments(self, segments, d_max, phi_max):
         inlier_segments = []
         for segment in segments:
@@ -335,11 +352,13 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
                 inlier_segments.append(segment)
         return inlier_segments
 
+
     # get the distance from the center of the Duckiebot to the center point of a segment
     def getSegmentDistance(self, segment):
         x_c = (segment.points[0].x + segment.points[1].x) / 2
         y_c = (segment.points[0].y + segment.points[1].y) / 2
         return sqrt(x_c**2 + y_c**2)
+
 
     def get_plot_phi_d(self, ground_truth=None):  # @UnusedVariable
         d, phi = self.getEstimate()
