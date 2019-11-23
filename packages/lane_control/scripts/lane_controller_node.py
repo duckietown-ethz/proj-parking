@@ -22,28 +22,34 @@ class lane_controller(object):
         self.setGains()
 
         # Publications
-        self.pub_car_cmd = rospy.Publisher("~car_cmd", Twist2DStamped, queue_size=1)
+        self.pub_car_cmd = rospy.Publisher(
+			"~car_cmd",
+			Twist2DStamped,
+			queue_size=1
+		)
         self.pub_actuator_limits_received = rospy.Publisher(
 			"~actuator_limits_received",
 			BoolStamped,
 			queue_size=1
 		)
-        self.pub_radius_limit = rospy.Publisher("~radius_limit", BoolStamped, queue_size=1)
-
+        self.pub_radius_limit = rospy.Publisher(
+			"~radius_limit",
+			BoolStamped,
+			queue_size=1
+		)
 
         # Subscriptions
         self.sub_lane_reading = rospy.Subscriber(
 			"~lane_pose",
 			LanePose,
-			self.PoseHandling,
+			self.poseHandling,
 			"lane_filter",
 			queue_size=1
 		)
-
         self.sub_obstacle_avoidance_pose = rospy.Subscriber(
 			"~obstacle_avoidance_pose",
 			LanePose,
-			self.PoseHandling,
+			self.poseHandling,
 			"obstacle_avoidance",
 			queue_size=1
 		)
@@ -54,15 +60,13 @@ class lane_controller(object):
 			"obstacle_detected",
 			queue_size=1
 		)
-
         self.sub_intersection_navigation_pose = rospy.Subscriber(
 			"~intersection_navigation_pose",
 			LanePose,
-			self.PoseHandling,
+			self.poseHandling,
 			"intersection_navigation",
 			queue_size=1
 		)
-
         self.sub_wheels_cmd_executed = rospy.Subscriber(
 			"~wheels_cmd_executed",
 			WheelsCmdStamped,
@@ -75,10 +79,6 @@ class lane_controller(object):
 			self.updateActuatorLimits,
 			queue_size=1
 		)
-
-        # FSM
-        self.sub_switch = rospy.Subscriber("~switch",BoolStamped, self.cbSwitch,  queue_size=1)
-
         self.sub_stop_line = rospy.Subscriber(
 			"~stop_line_reading",
 			StopLineReading,
@@ -86,8 +86,26 @@ class lane_controller(object):
 			queue_size=1
 		)
 
-        self.sub_fsm_mode = rospy.Subscriber("~fsm_mode", FSMState, self.cbMode, queue_size=1)
-        self.sub_doffset = rospy.Subscriber("~doffset",Float64, self.cbDoffset,  queue_size=1)
+        # FSM
+        self.sub_switch = rospy.Subscriber(
+			"~switch",
+			BoolStamped,
+			self.cbSwitch,
+			queue_size=1
+		)
+        self.sub_fsm_mode = rospy.Subscriber(
+			"~fsm_mode",
+			FSMState,
+			self.cbMode,
+			queue_size=1
+		)
+        self.sub_doffset = rospy.Subscriber(
+			"~doffset",
+			Float64,
+			self.cbDoffset,
+			queue_size=1
+		)
+
         self.msg_radius_limit = BoolStamped()
         self.msg_radius_limit.data = self.use_radius_limit
         self.pub_radius_limit.publish(self.msg_radius_limit)
@@ -129,7 +147,7 @@ class lane_controller(object):
         v_bar_fallback = 0.25  # nominal speed, 0.25m/s
         k_theta_fallback = -2.0
         k_d_fallback = - (k_theta_fallback ** 2) / (4.0 * self.v_bar_gain_ref)
-		
+
         theta_thres_fallback = math.pi / 6.0
         d_thres_fallback = math.fabs(k_theta_fallback / k_d_fallback) * theta_thres_fallback
         d_offset_fallback = 0.0
@@ -231,12 +249,11 @@ class lane_controller(object):
 
         k_Id = rospy.get_param("~k_Id")
         k_Iphi = rospy.get_param("~k_Iphi")
-		
+
         if self.k_Id != k_Id:
             rospy.loginfo("ADJUSTED I GAIN")
             self.cross_track_integral = 0
             self.k_Id = k_Id
-
 
         params_old = (self.v_bar, self.k_d, self.k_theta, self.d_thres,
 			self.theta_thres, self.d_offset, self.k_Id, self.k_Iphi,
@@ -288,7 +305,7 @@ class lane_controller(object):
 			 rospy.loginfo("flag_dict[\"obstacle_detected\"]: %s" % self.flag_dict["obstacle_detected"])
 
 
-    def PoseHandling(self, input_pose_msg, pose_source):
+    def poseHandling(self, input_pose_msg, pose_source):
         if not self.active:
             return
 
@@ -352,8 +369,10 @@ class lane_controller(object):
         if self.pose_msg != self.prev_pose_msg and self.pose_initialized:
             self.updatePose(self.pose_msg)
 
+
     def updateWheelsCmdExecuted(self, msg_wheels_cmd):
         self.wheels_cmd_executed = msg_wheels_cmd
+
 
     def updateActuatorLimits(self, msg_actuator_limits):
         self.actuator_limits = msg_actuator_limits
@@ -364,13 +383,14 @@ class lane_controller(object):
         msg_actuator_limits_received.data = True
         self.pub_actuator_limits_received.publish(msg_actuator_limits_received)
 
-    #TODO-TAL unused function, should be removed or used
+
     def sendStop(self):
         # Send stop command
         car_control_msg = Twist2DStamped()
         car_control_msg.v = 0.0
         car_control_msg.omega = 0.0
         self.publishCmd(car_control_msg)
+
 
     def custom_shutdown(self):
         rospy.loginfo("[%s] Shutting down..." % self.node_name)
@@ -493,7 +513,6 @@ class lane_controller(object):
         car_control_msg.omega = omega
         self.publishCmd(car_control_msg)
         self.last_ms = currentMillis
-
 
 
 if __name__ == "__main__":
