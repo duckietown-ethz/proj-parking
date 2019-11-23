@@ -53,6 +53,16 @@ class ParkingNode(DTROS):
             Float64,
             queue_size=1
         )
+        self.lane_filter_color_pub = rospy.Publisher(
+            '/parking/lane_color',
+            String,
+            queue_size=1
+        )
+        self.pause_lane_control_pub = rospy.Publisher(
+            'lane_controller_node/pause',
+            Float64,
+            queue_size=1
+        )
 
         # Subscribers
         self.vehicle_avoidance_wheel_cmd_sub = rospy.Subscriber(
@@ -83,13 +93,14 @@ class ParkingNode(DTROS):
 
         found_free_parking_spot = msg.data == True
         if found_free_parking_spot:
-            rospy.loginfo('[%s] found a free parking spot!' % self.node_name)
+            rospy.loginfo('[%s] Found a free parking spot!' % self.node_name)
             self.transitionToNextState()
 
 
     def cbVehicleAvoidanceControl(self, msg):
-        if msg.data:
-            rospy.loginfo('[%s] detected vehicle' % self.node_name)
+        twist = msg.data
+        if twist.v == 0 and twist.omega == 0:
+            rospy.loginfo('[%s] Vehicle avoidance wants to stop!' % self.node_name)
 
     """
     #############################
@@ -102,8 +113,13 @@ class ParkingNode(DTROS):
         next_state = self.state + 1
 
         if current_state == SEARCHING and next_state == IS_PARKING:
-            rospy.set_param('/parking/lane_color', 'blue')
+            self.updateLaneFilterColor('blue')
             self.updateDoffset(0)
+            self.pauseOperations(10)
+        elif current_state == IS_PARKING:
+            pass
+        else:
+            pass # TODO - handle other states
 
         if next_state in ALL_STATES:
             self.state = next_state
@@ -111,9 +127,20 @@ class ParkingNode(DTROS):
             self.state = INACTIVE
 
 
+    def pauseOperations(self, num_sec):
+        rospy.loginfo('[%s] Attempting to pause for %f seconds' % (self.node_name, num_sec))
+        self.pause_lane_control_pub.publish(num_sec)
+        rospy.sleep(num_sec)
+
+
     def updateDoffset(self, new_offset):
-        rospy.loginfo('[%s] publishing new d_offset: %f' % (self.node_name, new_offset))
+        rospy.loginfo('[%s] Publishing new d_offset: %f' % (self.node_name, new_offset))
         self.d_offset_pub.publish(new_offset)
+
+
+    def updateLaneFilterColor(self, desired_color):
+        rospy.loginfo('[%s] Publishing new color for lane_filter: %s' % (self.node_name, desired_color))
+        self.lane_filter_color_pub.publish(desired_color)
 
 
 if __name__ == '__main__':

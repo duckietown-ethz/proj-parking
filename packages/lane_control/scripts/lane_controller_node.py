@@ -77,6 +77,12 @@ class lane_controller(object):
             self.cbDoffset,
             queue_size=1
         )
+        self.sub_pause_ops = rospy.Subscriber(
+            "~pause",
+            Float64,
+            self.cbPauseOperations,
+            queue_size=1
+        )
 
         # FSM
         self.sub_switch = rospy.Subscriber(
@@ -110,6 +116,15 @@ class lane_controller(object):
         rospy.set_param("~d_offset", msg.data)
         self.d_offset = msg.data
         rospy.loginfo('[%s] Updating d_offset to %f' % (self.node_name, self.d_offset))
+
+
+    def cbPauseOperations(self, msg):
+        num_sec = msg.data
+        rospy.loginfo('[%s] Pausing operations for %f seconds' % (self.node_name, num_sec))
+        self.active = False
+        self.sendStop()
+        rospy.sleep(num_sec)
+        self.active = True
 
 
     def cbStopLineReading(self, msg):

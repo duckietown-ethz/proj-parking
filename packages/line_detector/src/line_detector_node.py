@@ -29,7 +29,7 @@ class LineDetectorNode(object):
         self.stats = Stats()
 
         # Only be verbose every 10 cycles
-        self.intermittent_interval = 100
+        self.intermittent_interval = 10000
         self.intermittent_counter = 0
 
         # these will be added if it becomes verbose

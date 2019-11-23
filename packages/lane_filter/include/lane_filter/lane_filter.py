@@ -6,6 +6,7 @@ from numpy.testing.utils import assert_almost_equal
 from scipy.ndimage.filters import gaussian_filter
 from scipy.stats import multivariate_normal, entropy
 
+from std_msgs.msg import String
 from duckietown_msgs.msg import SegmentList
 import duckietown_utils as dtu
 
@@ -98,12 +99,17 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         self.filtered_segments = []
 
         self.dynamic_color = YELLOW
-        self.updateDynamicColor()
+        self.dynamic_color_sub = rospy.Subscriber(
+            '/parking/lane_color',
+            String,
+            self.updateDynamicColor,
+            queue_size=1
+        )
 
 
-    def updateDynamicColor(self):
+    def updateDynamicColor(self, msg):
         old_color = self.dynamic_color
-        dynamic_color_str = rospy.get_param('/parking/lane_color', 'yellow')
+        dynamic_color_str = msg.data
         assert dynamic_color_str in COLOR_MAPPING.keys()
         self.dynamic_color = COLOR_MAPPING[dynamic_color_str]
 
@@ -154,8 +160,6 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
 
     # prepare the segments for the creation of the belief arrays
     def prepareSegments(self, segments):
-        self.updateDynamicColor()
-
         segmentsRangeArray = map(list, [[]] * (self.curvature_res + 1))
         self.filtered_segments = []
         for segment in segments:
