@@ -77,9 +77,6 @@ class FreeParking(DTROS):
         msg.data = detected
         self.is_free_pub.publish(msg)
 
-        if detected:
-            rospy.loginfo('FreeParking detected color %s' % ('green' if self.detect_green else 'blue'))
-
 
     def readImage(self, msg_image):
         """Convert images to OpenCV images

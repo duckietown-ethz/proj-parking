@@ -84,6 +84,12 @@ class ParkingNode(DTROS):
             self.cbParkingFree,
             queue_size=1
         )
+        self.stop_parking_sub = rospy.Subscriber(
+            '/%s/parking_stop/at_stop_line' % self.veh_name,
+            BoolStamped,
+            self.cbStopParking,
+            queue_size=1
+        )
 
         rospy.loginfo('[%s] Initialized' % self.node_name)
 
@@ -101,6 +107,19 @@ class ParkingNode(DTROS):
         found_free_parking_spot = msg.data == True
         if found_free_parking_spot:
             rospy.loginfo('[%s] Found a free parking spot!' % self.node_name)
+            self.transitionToNextState()
+
+
+    def cbStopParking(self, msg):
+        rospy.loginfo('parking.py stop_parking=%s' % str(msg.data))
+
+        # We only care about stopping parking if we're currently parking
+        if self.state != IS_PARKING:
+            return
+
+        should_stop_parking = msg.data == True
+        if should_stop_parking:
+            rospy.loginfo('[%s] Stop parking maneuver!' % self.node_name)
             self.transitionToNextState()
 
 
@@ -125,11 +144,11 @@ class ParkingNode(DTROS):
 
         if current_state == SEARCHING and next_state == IS_PARKING:
             self.updateLaneFilterColor('blue') # Follow blue lane, not yellow
-            self.updateDoffset(0.115) # Follow the center of the lane
-            # self.blinkLEDs() # Blink LEDs to indicate we are parking now
+            self.updateDoffset(0.22) # Follow the center of the lane
+            self.blinkLEDs() # Blink LEDs to indicate we are parking now
             self.pauseOperations(10) # Pause for 10 sec before continuing
         elif current_state == IS_PARKING:
-            pass
+            self.pauseOperations(30) # Stay in the parking spot 30 seconds
         else:
             pass # TODO - handle other states
 
