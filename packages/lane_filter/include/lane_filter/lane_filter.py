@@ -112,6 +112,7 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         dynamic_color_str = msg.data
         assert dynamic_color_str in COLOR_MAPPING.keys()
         self.dynamic_color = COLOR_MAPPING[dynamic_color_str]
+        self.is_dynamic = True
 
         if old_color != self.dynamic_color:
             rospy.loginfo('LaneFilter color changed to %d' % self.dynamic_color)
@@ -158,15 +159,24 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             self.beliefArray[k] = s_belief / np.sum(s_belief)
 
 
+    def shouldIgnoreColor(self, color):
+        if self.is_dynamic == False:
+            return False
+
+        if self.dynamic_color == GREEN and color != GREEN:
+            return True
+        elif self.dynamic_color == BLUE and color != BLUE:
+            return True
+
+        return False
+
+
     # prepare the segments for the creation of the belief arrays
     def prepareSegments(self, segments):
         segmentsRangeArray = map(list, [[]] * (self.curvature_res + 1))
         self.filtered_segments = []
         for segment in segments:
-            # Parking: filter out WHITE if tracking BLUE or GREEN
-            if self.is_dynamic and \
-            self.dynamic_color in [GREEN, BLUE] and \
-            segment.color == segment.WHITE:
+            if self.shouldIgnoreColor(segment.color):
                 continue
 
             # Optional transform from RED to WHITE
@@ -219,6 +229,7 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
     def update(self, segments):
         # prepare the segments for each belief array
         segmentsRangeArray = self.prepareSegments(segments)
+
         # generate all belief arrays
         for i in range(self.curvature_res + 1):
             measurement_likelihood = self.generate_measurement_likelihood(segmentsRangeArray[i])
@@ -234,8 +245,9 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
     def generate_measurement_likelihood(self, segments):
         # initialize measurement likelihood to all zeros
         measurement_likelihood = np.zeros(self.d.shape)
+        filtered_segments = [s for s in segments if not self.shouldIgnoreColor(s.color)]
 
-        for segment in segments:
+        for segment in filtered_segments:
             d_i, phi_i, l_i, weight =  self.generateVote(segment)
 
             # if the vote lands outside of the histogram discard it
@@ -315,6 +327,19 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
 
     # generate a vote for one segment
     def generateVote(self, segment):
+        color = segment.color
+        if False:
+            if color == segment.WHITE:
+                rospy.loginfo('WHITE segment')
+            elif color == segment.YELLOW:
+                rospy.loginfo('YELLOW segment')
+            elif color == segment.RED:
+                rospy.loginfo('RED segment')
+            elif color == GREEN:
+                rospy.loginfo('GREEN segment')
+            elif color == BLUE:
+                rospy.loginfo('BLUE segment')
+
         p1 = np.array([segment.points[0].x, segment.points[0].y])
         p2 = np.array([segment.points[1].x, segment.points[1].y])
         t_hat = (p2 - p1) / np.linalg.norm(p2 - p1)
@@ -357,7 +382,9 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
 
     def get_inlier_segments(self, segments, d_max, phi_max):
         inlier_segments = []
-        for segment in segments:
+        filtered_segments = [s for s in segments if not self.shouldIgnoreColor(s.color)]
+
+        for segment in filtered_segments:
             d_s, phi_s, l, w = self.generateVote(segment)
             if abs(d_s - d_max) < self.delta_d and abs(phi_s - phi_max)<self.delta_phi:
                 inlier_segments.append(segment)

@@ -237,7 +237,6 @@ class LineDetectorNode(object):
 
 #         if self.verbose:
 
-            print("THIS IS THE AREA OF GREEN COLOR : "+str(green.area))
             colorSegment = color_segment(white.area, red.area, yellow.area, green.area, blue.area)
             edge_msg_out = self.bridge.cv2_to_imgmsg(self.detector_used.edges, "mono8")
             colorSegment_msg_out = self.bridge.cv2_to_imgmsg(colorSegment, "bgr8")

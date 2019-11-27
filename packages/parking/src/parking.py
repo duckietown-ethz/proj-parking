@@ -5,6 +5,7 @@ import rospy
 from duckietown import DTROS
 from std_msgs.msg import String, Float64
 from duckietown_msgs.msg import BoolStamped, Twist2DStamped
+# from duckietown_msgs.srv import ChangePattern
 
 """
 #############################
@@ -46,6 +47,12 @@ class ParkingNode(DTROS):
         self.veh_name = rospy.get_namespace().strip("/")
         self.node_name = 'ParkingNode'
         self.state = SEARCHING
+
+        # Services
+        # self.set_led_pattern = rospy.ServiceProxy(
+        #     '/%s/led_emitter_node/set_pattern' % self.veh_name,
+        #     ChangePattern
+        # )
 
         # Publishers
         self.d_offset_pub = rospy.Publisher(
@@ -118,7 +125,8 @@ class ParkingNode(DTROS):
 
         if current_state == SEARCHING and next_state == IS_PARKING:
             self.updateLaneFilterColor('blue') # Follow blue lane, not yellow
-            self.updateDoffset(0) # Follow the center of the lane
+            self.updateDoffset(0.115) # Follow the center of the lane
+            # self.blinkLEDs() # Blink LEDs to indicate we are parking now
             self.pauseOperations(10) # Pause for 10 sec before continuing
         elif current_state == IS_PARKING:
             pass
@@ -146,6 +154,13 @@ class ParkingNode(DTROS):
         # desired_color should be one of 'yellow', 'green', 'blue'
         rospy.loginfo('[%s] Publishing new color for lane_filter: %s' % (self.node_name, desired_color))
         self.lane_filter_color_pub.publish(desired_color)
+
+
+    def blinkLEDs(self):
+        rospy.loginfo('[%s] Blinking LEDs' % self.node_name)
+        # pattern = ChangePattern()
+        # pattern.pattern_name = 'CAR_SIGNAL_SACRIFICE_FOR_PRIORITY'
+        # self.set_led_pattern(pattern)
 
 
 if __name__ == '__main__':

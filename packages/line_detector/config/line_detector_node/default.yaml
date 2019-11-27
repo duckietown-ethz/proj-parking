@@ -26,7 +26,7 @@ detector:
       hsv_red4:    [180,255,255]
       hsv_green1:    [45, 100, 100]
       hsv_green2:    [75, 255, 255]
-      hsv_blue1:    [90, 100, 100]
+      hsv_blue1:    [90, 60, 60]
       hsv_blue2:    [150, 255, 255]
 
 detector_intersection:
@@ -48,5 +48,5 @@ detector_intersection:
      hsv_red4:    [180,255,255]
      hsv_green1:    [45, 100, 100]
      hsv_green2:    [75, 255, 255]
-     hsv_blue1:    [110, 100, 100]
-     hsv_blue2:    [130, 255, 255]
+     hsv_blue1:    [90, 60, 60]
+     hsv_blue2:    [150, 255, 255]
