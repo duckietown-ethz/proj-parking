@@ -2,9 +2,14 @@
 
 import os
 import rospy
+import socket
+import re
+import pygame
+import time
 from duckietown import DTROS
 from std_msgs.msg import String, Float64
-from duckietown_msgs.msg import BoolStamped, Twist2DStamped
+from sensor_msgs.msg import Joy
+from duckietown_msgs.msg import BoolStamped, Twist2DStamped, WheelsCmdStamped
 # from duckietown_msgs.srv import ChangePattern
 
 """
@@ -30,6 +35,8 @@ ALL_STATES = [
     EXITING_PARKING_SPOT,
     EXITING_PARKING_LOT
 ]
+
+speed = 1.0
 
 
 class ParkingNode(DTROS):
@@ -71,6 +78,29 @@ class ParkingNode(DTROS):
             queue_size=1
         )
 
+        self.pub_joystick = rospy.Publisher(
+            "/" + str(self.veh_name) + "/joy",
+            Joy,
+            queue_size=1
+        )
+
+        self.pub_wheel_cmd = rospy.Publisher(
+            '~/%s/wheels_driver_node/wheels_cmd' %self.veh_name,
+            WheelsCmdStamped,
+            queue_size=10
+        )
+
+        self.pub_car_cmd = rospy.Publisher(
+            "~/%s/lane_controller_node/car_cmd" %self.veh_name,
+            Twist2DStamped,
+            queue_size=10
+        )
+
+        self.pub_reverse = rospy.Publisher(
+            '~/%s/parking/reverse' %self.veh_name,
+            BoolStamped,
+            queue_size=1
+        )
         # Subscribers
         self.vehicle_avoidance_wheel_cmd_sub = rospy.Subscriber(
             '/%s/vehicle_avoidance_control_node/car_cmd' % self.veh_name,
@@ -85,7 +115,7 @@ class ParkingNode(DTROS):
             queue_size=1
         )
         self.stop_parking_sub = rospy.Subscriber(
-            '/%s/parking_stop/at_stop_line' % self.veh_name,
+            '/%s/red_line' % self.veh_name,
             BoolStamped,
             self.cbStopParking,
             queue_size=1
@@ -111,21 +141,32 @@ class ParkingNode(DTROS):
 
 
     def cbStopParking(self, msg):
-        rospy.loginfo('parking.py stop_parking=%s' % str(msg.data))
-
+        # rospy.loginfo('parking.py stop_parking=%s' % str(msg.data))
+        # print(self.state)
         # We only care about stopping parking if we're currently parking
         if self.state != IS_PARKING:
             return
 
         should_stop_parking = msg.data == True
+        #print(should_stop_parking)
         if should_stop_parking:
             rospy.loginfo('[%s] Stop parking maneuver!' % self.node_name)
             self.transitionToNextState()
 
+            print("Parked, waiting for 5sec")
+            self.pauseOperations(2)
+            exitnow = False #self.waitForKeyboard()
+            # print(exitnow)
+            if exitnow == True:
+                self.transitionToNextState()
+            else:
+                print("sth is fucked")
+
+
 
     def cbVehicleAvoidanceControl(self, twist):
         # We will only stop for another Duckiebot in certain states
-        if self.state not in [SEARCHING, IS_PARKED]:
+        if self.state not in [SEARCHING]:
             return
 
         if twist.v == 0 and twist.omega == 0:
@@ -144,11 +185,32 @@ class ParkingNode(DTROS):
 
         if current_state == SEARCHING and next_state == IS_PARKING:
             self.updateLaneFilterColor('blue') # Follow blue lane, not yellow
-            self.updateDoffset(0.22) # Follow the center of the lane
+            self.updateDoffset(0.18) # Follow the left of the lane
             self.blinkLEDs() # Blink LEDs to indicate we are parking now
-            self.pauseOperations(10) # Pause for 10 sec before continuing
+            self.pauseOperations(2) # Pause for 2 sec before continuing
         elif current_state == IS_PARKING:
-            self.pauseOperations(30) # Stay in the parking spot 30 seconds
+            print("within trans IS_PARKING")
+            self.pauseOperations(2) # Stay in the parking spot 2 seconds
+            # self.stopLaneFollowing()
+            self.updateDoffset(0.11)
+            self.pauseOperations(2)
+            self.driveBackwards()
+            print("after db")
+            self.pauseOperations(2)
+            self.updateDoffset(0.0)
+            self.pauseOperations(2)
+            self.updateLaneFilterColor('yellow')
+            self.pauseOperations(2)
+        elif current_state == IS_PARKED:
+            self.pauseOperations(2)
+            print("within trans IS_PARKED")
+            # self.driveBackwards()
+            # print("after drive bw")
+            self.updateLaneFilterColor('yellow')
+            # self.restartLaneFollowing()
+            #self.waitForKeyboard()
+        elif current_state == EXITING_PARKING_SPOT:
+            pass
         else:
             pass # TODO - handle other states
 
@@ -163,6 +225,90 @@ class ParkingNode(DTROS):
         self.pause_lane_control_pub.publish(num_sec)
         rospy.sleep(num_sec)
 
+    def driveBackwards(self):
+        # car_control_msg = Twist2DStamped()
+        # car_control_msg.v = -1.0
+        # car_control_msg.omega = 0.0
+        # self.pub_car_cmd.publish(car_control_msg)
+        # msg_joy = Joy()
+        # msg_joy.header.seq = 0
+        # msg_joy.header.stamp.secs = 0
+        # msg_joy.header.stamp.nsecs = 0
+        # msg_joy.header.frame_id = ''
+        # msg_joy.axes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        # msg_joy.buttons = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        # msg_joy.buttons[6] = 0
+        # msg_joy.buttons[7] = 0
+        # timeout = time.time() + 5   # 5 seconds from now
+        # while True:
+        #     msg_joy.axes[1] -= speed
+        #     self.pub_joystick.publish(msg_joy)
+        #     print("in while loop")
+        #     if time.time() > timeout:
+        #         break
+        # print(msg_joy.axes[1])
+
+        # self.stopLaneFollowing()
+        # exitnow = False
+        # while exitnow == False:
+        #     exitnow = self.waitForKeyboard()
+        #     print(exitnow)
+        #
+        # self.restartLaneFollowing()
+
+        reverse = BoolStamped()
+        reverse.header.stamp = rospy.Time.now()
+        timeout = time.time() + 1.5   # 5 seconds from now
+        while True:
+            reverse.data = True
+            self.pub_reverse.publish(reverse)
+            # print(reverse.data)
+            if time.time() > timeout:
+                reverse.data = False
+                self.pub_reverse.publish(reverse)
+                print("time is over")
+                break
+
+        self.pauseOperations(2)
+        return
+
+    def waitForKeyboard(self):
+        # return False
+        try:
+
+            input("Press enter to continue")
+            return True
+        except SyntaxError:
+            return False
+
+    def stopLaneFollowing(self):
+        msg_joy = Joy()
+        msg_joy.header.seq = 0
+        msg_joy.header.stamp.secs = 0
+        msg_joy.header.stamp.nsecs = 0
+        msg_joy.header.frame_id = ''
+        msg_joy.axes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        msg_joy.buttons = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        msg_joy.axes[1] = 0
+        msg_joy.buttons[6] = 1 #should send same msg as when pressing s
+
+        self.pub_joystick.publish(msg_joy)
+        print("lane following stopped")
+
+    def restartLaneFollowing(self):
+        msg_joy = Joy()
+        msg_joy.header.seq = 0
+        msg_joy.header.stamp.secs = 0
+        msg_joy.header.stamp.nsecs = 0
+        msg_joy.header.frame_id = ''
+        msg_joy.axes = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        msg_joy.buttons = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        msg_joy.axes[1] = 0
+        msg_joy.buttons[6] = 0
+        msg_joy.buttons[7] = 1 #should send same msg as when pressing a
+        print("just before restart")
+        self.pub_joystick.publish(msg_joy)
+        print("just AFTER restart")
 
     def updateDoffset(self, new_offset):
         rospy.loginfo('[%s] Publishing new d_offset: %f' % (self.node_name, new_offset))
