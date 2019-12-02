@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import math
 import time
 import numpy as np
@@ -12,9 +13,11 @@ class lane_controller(object):
 
     def __init__(self):
         self.node_name = rospy.get_name()
+        self.veh = os.environ['VEHICLE_NAME']
         self.lane_reading = None
         self.last_ms = None
         self.pub_counter = 0
+        self.reverse_var = False
 
         # Setup parameters
         self.velocity_to_m_per_s = 1.53
@@ -83,6 +86,12 @@ class lane_controller(object):
             self.cbPauseOperations,
             queue_size=1
         )
+        self.reverse_sub = rospy.Subscriber(
+            '/%s/parking/reverse' % self.veh,
+            BoolStamped,
+            self.cbReverse,
+            queue_size=1
+        )
 
         # FSM
         self.sub_switch = rospy.Subscriber(
@@ -132,6 +141,11 @@ class lane_controller(object):
             msg.stop_line_point.x**2 + msg.stop_line_point.y**2 + msg.stop_line_point.z**2
         )
         self.stop_line_detected = msg.stop_line_detected
+
+
+    def cbReverse(self, msg):
+        should_reverse = msg.data
+        self.reverse_var = should_reverse
 
 
     def setupParameter(self, param_name, default_value):
@@ -469,6 +483,13 @@ class lane_controller(object):
         omega = min(self.omega_max, max(self.omega_min, omega))
         omega += self.omega_ff
         car_control_msg.omega = omega
+
+        if self.reverse_var:
+            # Open loop
+            car_control_msg.omega = -2.0
+            # Closed Loop
+            car_control_msg.v = -car_control_msg.v
+
         self.publishCmd(car_control_msg)
         self.last_ms = currentMillis
 
