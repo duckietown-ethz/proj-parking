@@ -5,8 +5,12 @@ import os
 
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import CompressedImage, Image
-from duckietown_msgs.msg import Segment, SegmentList, Vector2D
-from duckietown_msgs.msg import BoolStamped
+from duckietown_msgs.msg import (
+    Segment,
+    SegmentList,
+    Vector2D,
+    BoolStamped
+)
 
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
@@ -45,11 +49,6 @@ class RedLine(DTROS):
 
         self.bridge = CvBridge()
         self.detection_threshold = 300
-        self.detect_red = True
-        self.hsv_green1 = np.array([45, 100, 100])
-        self.hsv_green2 = np.array([75, 255, 255])
-        self.hsv_blue1 = np.array([90, 100, 100])
-        self.hsv_blue2 = np.array([150, 255, 255])
         self.hsv_red1 = np.array([0,140,100])
         self.hsv_red2 = np.array([15,255,255])
         self.hsv_red3 = np.array([165,140,100])
@@ -60,21 +59,14 @@ class RedLine(DTROS):
 
     def detectColor(self,data):
         img = self.readImage(data)
-        img = img[230:,:]
+        img = img[230:, :]
 
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        #detect green
-        lower_bound1 = self.hsv_red1 if self.detect_red else self.hsv_blue1
-        upper_bound1 = self.hsv_red2 if self.detect_red else self.hsv_blue1
-        lower_bound2 = self.hsv_red3 if self.detect_red else self.hsv_blue1
-        upper_bound2 = self.hsv_red4 if self.detect_red else self.hsv_blue1
-
-        bw1 = cv2.inRange(hsv, lower_bound1, upper_bound1)
-        bw2 = cv2.inRange(hsv, lower_bound2, upper_bound2)
-
+        # detect red
+        bw1 = cv2.inRange(hsv, self.hsv_red1, self.hsv_red2)
+        bw2 = cv2.inRange(hsv, self.hsv_red3, self.hsv_red4)
         bw = cv2.bitwise_or(bw1, bw2)
-
 
         # binary dilation
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
@@ -82,7 +74,7 @@ class RedLine(DTROS):
         bw = cv2.dilate(bw, kernel)
         color_count = np.sum(bw/255)
         detected = (color_count > self.detection_threshold)
-        # print(detected)
+
         msg = BoolStamped()
         msg.header.stamp = rospy.Time.now()
         msg.data = detected

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import math
 import time
 import numpy as np
@@ -12,6 +13,7 @@ class lane_controller(object):
 
     def __init__(self):
         self.node_name = rospy.get_name()
+        self.veh = os.environ['VEHICLE_NAME']
         self.lane_reading = None
         self.last_ms = None
         self.pub_counter = 0
@@ -84,14 +86,12 @@ class lane_controller(object):
             self.cbPauseOperations,
             queue_size=1
         )
-        #LINUS
         self.reverse_sub = rospy.Subscriber(
-            '/linuslingg/parking/reverse',
+            '/%s/parking/reverse' % self.veh,
             BoolStamped,
             self.cbReverse,
             queue_size=1
         )
-
 
         # FSM
         self.sub_switch = rospy.Subscriber(
@@ -142,12 +142,11 @@ class lane_controller(object):
         )
         self.stop_line_detected = msg.stop_line_detected
 
-    #LINUS
-    def cbReverse(self,msg):
-        if msg.data == True:
-            self.reverse_var = True
-        else:
-            self.reverse_var = False
+
+    def cbReverse(self, msg):
+        should_reverse = msg.data
+        self.reverse_var = should_reverse
+
 
     def setupParameter(self, param_name, default_value):
         value = rospy.get_param(param_name, default_value)
@@ -484,15 +483,13 @@ class lane_controller(object):
         omega = min(self.omega_max, max(self.omega_min, omega))
         omega += self.omega_ff
         car_control_msg.omega = omega
-        #print(car_control_msg.v)
-        #print(car_control_msg.omega)
-        if self.reverse_var ==True:
-            #Openloop
-            # car_control_msg.v = -0.20
-            car_control_msg.omega = -1.0
-            #ClosedLoop
+
+        if self.reverse_var:
+            # Open loop
+            car_control_msg.omega = -2.0
+            # Closed Loop
             car_control_msg.v = -car_control_msg.v
-            # car_control_msg.omega = -car_control_msg.omega
+
         self.publishCmd(car_control_msg)
         self.last_ms = currentMillis
 

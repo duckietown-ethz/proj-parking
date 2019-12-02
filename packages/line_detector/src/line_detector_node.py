@@ -80,7 +80,6 @@ class LineDetectorNode(object):
 
         self.image_size = rospy.get_param('~img_size')
         self.top_cutoff = rospy.get_param('~top_cutoff')
-        self.top_cutoff = 40
 
         if self.detector is None:
             c = rospy.get_param('~detector')

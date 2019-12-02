@@ -77,31 +77,27 @@ class ParkingNode(DTROS):
             Float64,
             queue_size=1
         )
-
         self.pub_joystick = rospy.Publisher(
-            "/" + str(self.veh_name) + "/joy",
+            '/%s/joy' % self.veh_name,
             Joy,
             queue_size=1
         )
-
         self.pub_wheel_cmd = rospy.Publisher(
-            '~/%s/wheels_driver_node/wheels_cmd' %self.veh_name,
+            '~/%s/wheels_driver_node/wheels_cmd' % self.veh_name,
             WheelsCmdStamped,
             queue_size=10
         )
 
         self.pub_car_cmd = rospy.Publisher(
-            "~/%s/lane_controller_node/car_cmd" %self.veh_name,
+            "~/%s/lane_controller_node/car_cmd" % self.veh_name,
             Twist2DStamped,
             queue_size=10
         )
-
         self.pub_reverse = rospy.Publisher(
-            '~/%s/parking/reverse' %self.veh_name,
+            '~/%s/parking/reverse' % self.veh_name,
             BoolStamped,
             queue_size=1
         )
-        # Subscribers
         self.vehicle_avoidance_wheel_cmd_sub = rospy.Subscriber(
             '/%s/vehicle_avoidance_control_node/car_cmd' % self.veh_name,
             Twist2DStamped,
@@ -141,8 +137,6 @@ class ParkingNode(DTROS):
 
 
     def cbStopParking(self, msg):
-        # rospy.loginfo('parking.py stop_parking=%s' % str(msg.data))
-        # print(self.state)
         # We only care about stopping parking if we're currently parking
         if self.state != IS_PARKING:
             return
@@ -182,6 +176,8 @@ class ParkingNode(DTROS):
     def transitionToNextState(self):
         current_state = self.state
         next_state = self.state + 1
+        if next_state not in ALL_STATES:
+            next_state = INACTIVE
 
         if current_state == SEARCHING and next_state == IS_PARKING:
             self.updateLaneFilterColor('blue') # Follow blue lane, not yellow
@@ -214,16 +210,14 @@ class ParkingNode(DTROS):
         else:
             pass # TODO - handle other states
 
-        if next_state in ALL_STATES:
-            self.state = next_state
-        else:
-            self.state = INACTIVE
+        self.state = next_state
 
 
     def pauseOperations(self, num_sec):
         rospy.loginfo('[%s] Attempting to pause for %f seconds' % (self.node_name, num_sec))
         self.pause_lane_control_pub.publish(num_sec)
         rospy.sleep(num_sec)
+
 
     def driveBackwards(self):
         # car_control_msg = Twist2DStamped()
@@ -272,6 +266,7 @@ class ParkingNode(DTROS):
         self.pauseOperations(2)
         return
 
+
     def waitForKeyboard(self):
         # return False
         try:
@@ -280,6 +275,7 @@ class ParkingNode(DTROS):
             return True
         except SyntaxError:
             return False
+
 
     def stopLaneFollowing(self):
         msg_joy = Joy()
@@ -295,6 +291,7 @@ class ParkingNode(DTROS):
         self.pub_joystick.publish(msg_joy)
         print("lane following stopped")
 
+
     def restartLaneFollowing(self):
         msg_joy = Joy()
         msg_joy.header.seq = 0
@@ -309,6 +306,7 @@ class ParkingNode(DTROS):
         print("just before restart")
         self.pub_joystick.publish(msg_joy)
         print("just AFTER restart")
+
 
     def updateDoffset(self, new_offset):
         rospy.loginfo('[%s] Publishing new d_offset: %f' % (self.node_name, new_offset))
