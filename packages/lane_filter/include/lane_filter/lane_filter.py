@@ -115,7 +115,7 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         self.is_dynamic = True
 
         if old_color != self.dynamic_color:
-            rospy.loginfo('LaneFilter color changed to %d' % self.dynamic_color)
+            rospy.loginfo('LaneFilter color changed to %s' % dynamic_color_str)
 
 
     def getStatus(self):

@@ -129,7 +129,7 @@ class lane_controller(object):
 
     def cbPauseOperations(self, msg):
         num_sec = msg.data
-        rospy.loginfo('[%s] Pausing operations for %f seconds' % (self.node_name, num_sec))
+        rospy.loginfo('[%s] Pausing operations for %.1f seconds' % (self.node_name, num_sec))
         self.active = False
         self.sendStop()
         rospy.sleep(num_sec)
