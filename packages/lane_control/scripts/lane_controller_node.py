@@ -505,8 +505,8 @@ class lane_controller(object):
         omega += self.omega_ff
         car_control_msg.omega = omega
 
-        print(car_control_msg.v)
-        print(car_control_msg.omega)
+        # print(car_control_msg.v)
+        # print(car_control_msg.omega)
 
         if self.reverse_var:
             # Open loop
