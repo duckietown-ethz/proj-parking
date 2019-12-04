@@ -55,6 +55,8 @@ class ParkingNode(DTROS):
         self.node_name = 'ParkingNode'
         self.state = ENTERING_PARKING_LOT
         self.apriltagnumber = 0
+        self.redLineCounterBefore = 0
+        self.redLineCounterAfter = 0
 
 
         # Services
@@ -156,7 +158,9 @@ class ParkingNode(DTROS):
                 self.transitionToNextState()
             elif self.state == SEARCHING:
                 self.goStraight()
+                self.redLineCounterBefore = self.redLineCounterBefore + 1
             elif self.state == EXITING_PARKING_LOT:
+                self.redLineCounterAfter = self.redLineCounterAfter + 1 
                 self.apriltagnumber = self.aprilTagDetection()
                 if self.apriltagnumber == 0:
                     self.turnRight()
