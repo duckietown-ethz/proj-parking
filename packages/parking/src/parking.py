@@ -144,12 +144,14 @@ class ParkingNode(DTROS):
         self.state = next_state
 
         if next_state == IS_PARKING:
+            self.updateTopCutoff(80) # Cut out blue lines from other parking spots
             self.updateLaneFilterColor('blue') # Follow blue lane, not yellow
             self.updateDoffset(0.18) # Follow the left of the blue lane
             self.setLEDs('blink') # Blink LEDs to indicate we are parking now
             self.pauseOperations(2) # Pause for 2 sec before continuing
 
         elif next_state == IS_PARKED:
+            self.updateTopCutoff() # No longer need to cut off top of image
             self.setLEDs('off') # Turn off LEDs while parked
             self.pauseOperations(5) # Stay in the parking spot a certain time
             self.transitionToNextState() # Start exiting the parking spot
@@ -157,32 +159,50 @@ class ParkingNode(DTROS):
         elif next_state == EXITING_PARKING_SPOT:
             self.setLEDs('red') # Set LEDs to red to indicate leaving parking
             self.pauseOperations(3) # Allow time for others to detect LEDs
+            self.startNormalLaneFollowing()
+            self.transitionToNextState()
 
         elif next_state == EXITING_PARKING_LOT:
-            self.setLEDs('white') # Set LEDs to white (normal operation)
-            self.updateDoffset(0.0) # d_offset=0 for normal lane following
-            self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
+            # TODO - Change this (for testing, always reset to SEARCHING)
+            self.state = SEARCHING
 
         else:
             pass # TODO - handle other states
 
 
     def pauseOperations(self, num_sec):
-        rospy.loginfo('[%s] Attempting to pause for %.1f seconds' % (self.node_name, num_sec))
+        tup = (self.node_name, num_sec)
+        rospy.loginfo('[%s] Attempting to pause for %.1f seconds' % tup)
         self.pause_lane_control_pub.publish(num_sec)
         rospy.sleep(num_sec)
 
 
+    def startNormalLaneFollowing(self):
+        self.setLEDs('white') # Set LEDs to white (normal operation)
+        self.updateDoffset(0.0) # d_offset=0 for normal lane following
+        self.updateTopCutoff() # No top cutoff for normal lane following
+        self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
+
+
     def updateDoffset(self, new_offset):
-        rospy.loginfo('[%s] Publishing new d_offset: %.3f' % (self.node_name, new_offset))
+        tup = (self.node_name, new_offset)
+        rospy.loginfo('[%s] Publishing new d_offset: %.3f' % tup)
         self.d_offset_pub.publish(new_offset)
 
 
     def updateLaneFilterColor(self, desired_color):
-        # desired_color should be one of 'yellow', 'green', 'blue'
+        # Desired_color should be one of 'yellow', 'green', 'blue'
         tup = (self.node_name, desired_color)
         rospy.loginfo('[%s] Publishing new color for lane_filter: %s' % tup)
         self.lane_filter_color_pub.publish(desired_color)
+
+
+    def updateTopCutoff(self, cutoff=40):
+        # Cutoff (don't examine) the top section of the image for line detector
+        tup = (self.node_name, cutoff)
+        rospy.loginfo('[%s] Setting line detector top_cutoff=%d' % tup)
+        param_name = '/%s/line_detector_node/top_cutoff' % self.veh_name
+        rospy.set_param(param_name, cutoff)
 
 
     def setLEDs(self, pattern):

@@ -56,13 +56,12 @@ class WhiteLineDetectorNode(DTROS):
         self.edges = np.empty(0)
 
 
-    def bottomCenterOfImage(self, full_image):
-        quarter_width = WIDTH // 4
-        return full_image[HEIGHT-10:, WIDTH-quarter_width:WIDTH+quarter_width]
+    def croppedImage(self, full_image):
+        return full_image[HEIGHT-10:, :WIDTH//2]
 
 
     def detectColor(self, data):
-        img = self.bottomCenterOfImage(self.readImage(data))
+        img = self.croppedImage(self.readImage(data))
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         # Detect white

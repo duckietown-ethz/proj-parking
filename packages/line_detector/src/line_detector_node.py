@@ -72,6 +72,7 @@ class LineDetectorNode(object):
 
 
     def updateParams(self, _event):
+        rospy.loginfo('FUCK updateParams() line_detector_node')
         old_verbose = self.verbose
         self.verbose = rospy.get_param('~verbose', True)
         # self.loginfo('verbose = %r' % self.verbose)
@@ -80,6 +81,7 @@ class LineDetectorNode(object):
 
         self.image_size = rospy.get_param('~img_size')
         self.top_cutoff = rospy.get_param('~top_cutoff')
+        rospy.loginfo('SHIT top_cutoff = %s' % str(self.top_cutoff))
 
         if self.detector is None:
             c = rospy.get_param('~detector')
