@@ -17,6 +17,8 @@ class lane_controller(object):
         self.lane_reading = None
         self.last_ms = None
         self.pub_counter = 0
+        self.go_straight = False
+        self.turn_right = False
 
         # Setup parameters
         self.velocity_to_m_per_s = 1.53
@@ -85,6 +87,18 @@ class lane_controller(object):
             self.cbPauseOperations,
             queue_size=1
         )
+        self.turn_right_sub = rospy.Subscriber(
+            '/%s/parking/turnright' % self.veh,
+            BoolStamped,
+            self.cbTurnRight,
+            queue_size=1
+        )
+        self.go_straight_sub = rospy.Subscriber(
+            '/%s/parking/gostraight' % self.veh,
+            BoolStamped,
+            self.cbGoStraight,
+            queue_size=1
+        )
 
         # FSM
         self.sub_switch = rospy.Subscriber(
@@ -136,10 +150,20 @@ class lane_controller(object):
         self.stop_line_detected = msg.stop_line_detected
 
 
+    def cbTurnRight(self, msg):
+        should_turnright = msg.data
+        self.turn_right = should_turnright
+
+
+    def cbGoStraight(self, msg):
+        should_gostraight = msg.data
+        self.go_straight = should_gostraight
+
+
     def setupParameter(self, param_name, default_value):
         value = rospy.get_param(param_name, default_value)
         rospy.set_param(param_name, value)
-        rospy.loginfo("[%s] %s = %s " %(self.node_name, param_name, value))
+        rospy.loginfo("[%s] %s = %s " % (self.node_name, param_name, value))
         return value
 
 
@@ -471,6 +495,13 @@ class lane_controller(object):
         omega = min(self.omega_max, max(self.omega_min, omega))
         omega += self.omega_ff
         car_control_msg.omega = omega
+
+        if self.go_straight:
+            car_control_msg.omega = 0.0
+            car_control_msg.v = 0.23
+        elif self.turn_right:
+            car_control_msg.omega = -3.0
+            car_control_msg.v = 0.23
 
         self.publishCmd(car_control_msg)
         self.last_ms = currentMillis
