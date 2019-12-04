@@ -500,8 +500,8 @@ class lane_controller(object):
             car_control_msg.omega = 0.0
             car_control_msg.v = 0.23
         elif self.turn_right:
-            car_control_msg.omega = -3.0 # -3.5
-            car_control_msg.v = 0.23 # 0.23
+            car_control_msg.omega = -3.0
+            car_control_msg.v = 0.23
 
         self.publishCmd(car_control_msg)
         self.last_ms = currentMillis
