@@ -37,8 +37,6 @@ ALL_STATES = [
     EXITING_PARKING_LOT
 ]
 
-speed = 1.0
-
 
 class ParkingNode(DTROS):
 
@@ -96,13 +94,13 @@ class ParkingNode(DTROS):
 
         # Subscribers
         self.free_parking_sub = rospy.Subscriber(
-            '/%s/free_parking' % self.veh_name,
+            '/%s/parking/free_parking' % self.veh_name,
             BoolStamped,
             self.cbParkingFree,
             queue_size=1
         )
         self.stop_parking_sub = rospy.Subscriber(
-            '/%s/red_line' % self.veh_name,
+            '/%s/parking/white_line' % self.veh_name,
             BoolStamped,
             self.cbStopParking,
             queue_size=1
@@ -196,7 +194,7 @@ class ParkingNode(DTROS):
 
 
     def updateDoffset(self, new_offset):
-        rospy.loginfo('[%s] Publishing new d_offset: %f' % (self.node_name, new_offset))
+        rospy.loginfo('[%s] Publishing new d_offset: %.3f' % (self.node_name, new_offset))
         self.d_offset_pub.publish(new_offset)
 
 

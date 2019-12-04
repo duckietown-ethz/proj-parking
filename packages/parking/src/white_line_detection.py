@@ -5,33 +5,38 @@ import os
 import numpy as np
 
 from cv_bridge import CvBridge, CvBridgeError
-from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import CompressedImage, Image
 from duckietown_msgs.msg import BoolStamped
 from duckietown import DTROS
 
+WIDTH = 320
+HEIGHT = 240
 
-class FreeParking(DTROS):
+class WhiteLineDetectorNode(DTROS):
     """
-        This node is used by parking to detect a free parking spot.
-        It works by checking the lower-left corner of the image
-        for green pixels, and if enough green pixels are seen, it
-        publishes a message `True` (otherwise publishes `False`).
+        This node looks in the bottom of the image for
+        the color white and publishes a Boolean value
+        if it detects an amount of white above a certain threshold.
+        ----------
+        It is used by parking as a trigger that the Duckiebot
+        can stop the parking maneuver white it approaches a white line.
     """
+
     def __init__(self, node_name):
         # Initialize the DTROS parent class
-        super(FreeParking, self).__init__(node_name=node_name)
+        super(WhiteLineDetectorNode, self).__init__(node_name=node_name)
         self.veh = os.environ['VEHICLE_NAME']
 
         # Adjust camera resolution
-        rospy.set_param('/%s/camera_node/res_w' % self.veh, 320)
-        rospy.set_param('/%s/camera_node/res_h' % self.veh, 240)
+        rospy.set_param('/%s/camera_node/res_w' % self.veh, WIDTH)
+        rospy.set_param('/%s/camera_node/res_h' % self.veh, HEIGHT)
         rospy.set_param('/%s/camera_node/exposure_mode' % self.veh, 'off')
 
         self.updateParameters()
 
         # Publishers
-        self.is_free_pub = rospy.Publisher(
-            '~/%s/parking/free_parking' % self.veh,
+        self.white_pub = rospy.Publisher(
+            '~/%s/parking/white_line' % self.veh,
             BoolStamped,
             queue_size=1
         )
@@ -45,29 +50,25 @@ class FreeParking(DTROS):
 
         self.bridge = CvBridge()
         self.detection_threshold = 300
-        self.detect_green = True
-        self.hsv_green1 = np.array([45, 100, 100])
-        self.hsv_green2 = np.array([75, 255, 255])
-        self.hsv_blue1 = np.array([90, 100, 100])
-        self.hsv_blue2 = np.array([150, 255, 255])
+        self.hsv_white1 = np.array([0, 0, 150])
+        self.hsv_white2 = np.array([180, 100, 255])
         self.dilation_kernel_size = 3
         self.edges = np.empty(0)
 
 
-    def lowerLeftImage(self, full_image):
-        return full_image[160:, :120]
+    def bottomCenterOfImage(self, full_image):
+        quarter_width = WIDTH // 4
+        return full_image[HEIGHT-10:, WIDTH-quarter_width:WIDTH+quarter_width]
 
 
     def detectColor(self, data):
-        img = self.lowerLeftImage(self.readImage(data))
+        img = self.bottomCenterOfImage(self.readImage(data))
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        # Detect the color
-        lower_bound = self.hsv_green1 if self.detect_green else self.hsv_blue1
-        upper_bound = self.hsv_green2 if self.detect_green else self.hsv_blue2
-        bw = cv2.inRange(hsv, lower_bound, upper_bound)
+        # Detect white
+        bw = cv2.inRange(hsv, self.hsv_white1, self.hsv_white2)
 
-        # binary dilation
+        # Binary dilation
         kernel_size = (self.dilation_kernel_size, self.dilation_kernel_size)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, kernel_size)
         bw = cv2.dilate(bw, kernel)
@@ -77,7 +78,7 @@ class FreeParking(DTROS):
         msg = BoolStamped()
         msg.header.stamp = rospy.Time.now()
         msg.data = detected
-        self.is_free_pub.publish(msg)
+        self.white_pub.publish(msg)
 
 
     def readImage(self, msg_image):
@@ -91,12 +92,12 @@ class FreeParking(DTROS):
             cv_image = self.bridge.compressed_imgmsg_to_cv2(msg_image)
             return cv_image
         except CvBridgeError as e:
-            print(e)
+            # print(e)
             return []
 
 
 if __name__ == '__main__':
     # Initialize the node
-    camera_node = FreeParking(node_name='parking_free')
+    detector = WhiteLineDetectorNode(node_name='white_line_detector')
     # Keep it spinning to keep the node alive
     rospy.spin()
