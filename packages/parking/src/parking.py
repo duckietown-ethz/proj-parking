@@ -86,11 +86,6 @@ class ParkingNode(DTROS):
             Twist2DStamped,
             queue_size=10
         )
-        self.pub_reverse = rospy.Publisher(
-            '~/%s/parking/reverse' % self.veh_name,
-            BoolStamped,
-            queue_size=1
-        )
 
         # Subscribers
         self.free_parking_sub = rospy.Subscriber(
@@ -162,7 +157,6 @@ class ParkingNode(DTROS):
         elif next_state == EXITING_PARKING_SPOT:
             self.setLEDs('red') # Set LEDs to red to indicate leaving parking
             self.pauseOperations(3) # Allow time for others to detect LEDs
-            self.driveBackwards() # Begin maneuver to exit parking spot
 
         elif next_state == EXITING_PARKING_LOT:
             self.setLEDs('white') # Set LEDs to white (normal operation)
@@ -177,20 +171,6 @@ class ParkingNode(DTROS):
         rospy.loginfo('[%s] Attempting to pause for %.1f seconds' % (self.node_name, num_sec))
         self.pause_lane_control_pub.publish(num_sec)
         rospy.sleep(num_sec)
-
-
-    def driveBackwards(self):
-        reverse = BoolStamped()
-        reverse.header.stamp = rospy.Time.now()
-        timeout = time.time() + 1.5 # 1.5 seconds from now
-        while True:
-            reverse.data = True
-            self.pub_reverse.publish(reverse)
-            if time.time() > timeout:
-                reverse.data = False
-                self.pub_reverse.publish(reverse)
-                break
-        self.transitionToNextState() # Reversal maneuver completed -> next state
 
 
     def updateDoffset(self, new_offset):
