@@ -1,5 +1,5 @@
 #!/bin/bash
 
-export BOTNAME=manipanpan
+export BOTNAME=linuslingg
 
 dts duckiebot keyboard_control $BOTNAME

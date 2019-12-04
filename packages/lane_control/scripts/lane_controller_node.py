@@ -18,6 +18,8 @@ class lane_controller(object):
         self.last_ms = None
         self.pub_counter = 0
         self.reverse_var = False
+        self.goStraight_var = False
+        self.turnRight_var = False
 
         # Setup parameters
         self.velocity_to_m_per_s = 1.53
@@ -92,6 +94,18 @@ class lane_controller(object):
             self.cbReverse,
             queue_size=1
         )
+        self.turnRight_sub = rospy.Subscriber(
+            '/%s/parking/turnright' % self.veh,
+            BoolStamped,
+            self.cbTurnRight,
+            queue_size=1
+        )
+        self.goStraight_sub = rospy.Subscriber(
+            '/%s/parking/gostraight' % self.veh,
+            BoolStamped,
+            self.cbGoStraight,
+            queue_size=1
+        )
 
         # FSM
         self.sub_switch = rospy.Subscriber(
@@ -147,6 +161,13 @@ class lane_controller(object):
         should_reverse = msg.data
         self.reverse_var = should_reverse
 
+    def cbTurnRight(self, msg):
+        should_turnright = msg.data
+        self.turnRight_var = should_turnright
+
+    def cbGoStraight(self, msg):
+        should_gostraight = msg.data
+        self.goStraight_var = should_gostraight
 
     def setupParameter(self, param_name, default_value):
         value = rospy.get_param(param_name, default_value)
@@ -484,11 +505,20 @@ class lane_controller(object):
         omega += self.omega_ff
         car_control_msg.omega = omega
 
+        print(car_control_msg.v)
+        print(car_control_msg.omega)
+
         if self.reverse_var:
             # Open loop
             car_control_msg.omega = -2.0
             # Closed Loop
             car_control_msg.v = -car_control_msg.v
+        if self.goStraight_var:
+            car_control_msg.omega = 0.0
+            car_control_msg.v = 0.23
+        if self.turnRight_var:
+            car_control_msg.omega = -3.0 #-3.5
+            car_control_msg.v = 0.23 #0,23
 
         self.publishCmd(car_control_msg)
         self.last_ms = currentMillis
