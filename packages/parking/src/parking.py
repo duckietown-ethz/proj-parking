@@ -175,9 +175,15 @@ class ParkingNode(DTROS):
                 self.apriltagnumber = self.aprilTagDetection()
                 if (self.redLineCounterBefore % 2)  == 0:   #even number of red lines seen after entering parking lot (so found a parking spot in the first row)
                     if self.redLineCounterAfter == 1:
-                        self.turnRight()
+                        self.turnLeft()
+                    if self.redLineCounterAfter == 2:
+                        self.turnRight() #exit parking area so maybe add additional state exited parking area and call transitionToNextState here
                 else:  #odd number of red lines seen after entering parking lot (so found a parking spot in the second row)
-                    self.goStraight()
+                    if self.redLineCounterAfter == 1: #always true... not needed
+                    self.goStraight() #exit parking area so maybe add additional state exited parking area and call transitionToNextState here
+
+
+
                 # if self.apriltagnumber == 0:
                 #     self.turnRight()
                 # elif self.apriltagnumber == 1:
