@@ -103,6 +103,11 @@ class ParkingNode(DTROS):
             BoolStamped,
             queue_size=1
         )
+        self.pub_turnleft = rospy.Publisher(
+            '~/%s/parking/turnleft' % self.veh_name,
+            BoolStamped,
+            queue_size=1
+        )
         self.pub_gostraight = rospy.Publisher(
             '~/%s/parking/gostraight' % self.veh_name,
             BoolStamped,
@@ -166,14 +171,19 @@ class ParkingNode(DTROS):
                 self.goStraight()
                 self.redLineCounterBefore = self.redLineCounterBefore + 1
             elif self.state == EXITING_PARKING_LOT:
-                self.redLineCounterAfter = self.redLineCounterAfter + 1 
+                self.redLineCounterAfter = self.redLineCounterAfter + 1
                 self.apriltagnumber = self.aprilTagDetection()
-                if self.apriltagnumber == 0:
-                    self.turnRight()
-                elif self.apriltagnumber == 1:
+                if (self.redLineCounterBefore % 2)  == 0:   #even number of red lines seen after entering parking lot (so found a parking spot in the first row)
+                    if self.redLineCounterAfter == 1:
+                        self.turnRight()
+                else:  #odd number of red lines seen after entering parking lot (so found a parking spot in the second row)
                     self.goStraight()
-                else:
-                    self.goStraight()
+                # if self.apriltagnumber == 0:
+                #     self.turnRight()
+                # elif self.apriltagnumber == 1:
+                #     self.goStraight()
+                # else:
+                #     self.goStraight()
 
 
 
@@ -269,6 +279,19 @@ class ParkingNode(DTROS):
                 self.pub_turnright.publish(right)
                 break
         # self.transitionToNextState() # Reversal maneuver completed -> next state
+
+    def turnLeft(self):
+        print("Turn Left")
+        left = BoolStamped()
+        left.header.stamp = rospy.Time.now()
+        timeout = time.time() + 1.5 # 1.5 seconds from now
+        while True:
+            left.data = True
+            self.pub_turnleft.publish(left)
+            if time.time() > timeout:
+                left.data = False
+                self.pub_turnleft.publish(left)
+                break
 
 
     def goStraight(self):

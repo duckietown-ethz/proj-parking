@@ -20,6 +20,7 @@ class lane_controller(object):
         self.reverse_var = False
         self.goStraight_var = False
         self.turnRight_var = False
+        self.turnLeft_var = False
 
         # Setup parameters
         self.velocity_to_m_per_s = 1.53
@@ -100,6 +101,12 @@ class lane_controller(object):
             self.cbTurnRight,
             queue_size=1
         )
+        self.turnLeft_sub = rospy.Subscriber(
+            '/%s/parking/turnleft' % self.veh,
+            BoolStamped,
+            self.cbTurnLeft,
+            queue_size=1
+        )
         self.goStraight_sub = rospy.Subscriber(
             '/%s/parking/gostraight' % self.veh,
             BoolStamped,
@@ -164,6 +171,10 @@ class lane_controller(object):
     def cbTurnRight(self, msg):
         should_turnright = msg.data
         self.turnRight_var = should_turnright
+
+    def cbTurnleft(self, msg):
+        should_turnleft = msg.data
+        self.turnLeft_var = should_turnleft
 
     def cbGoStraight(self, msg):
         should_gostraight = msg.data
@@ -518,6 +529,9 @@ class lane_controller(object):
             car_control_msg.v = 0.23
         if self.turnRight_var:
             car_control_msg.omega = -3.0 #-3.5
+            car_control_msg.v = 0.23 #0,23
+        if self.turnLeft_var:
+            car_control_msg.omega = 3.0 # NOTE: Not tested... should probably be less (around 1.5) as its a wider turn
             car_control_msg.v = 0.23 #0,23
 
         self.publishCmd(car_control_msg)
