@@ -6,7 +6,7 @@ import numpy as np
 import rospy
 from duckietown_msgs.msg import Twist2DStamped, LanePose, WheelsCmdStamped, BoolStamped, FSMState, StopLineReading
 import time
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, String
 import numpy as np
 
 class lane_controller(object):
@@ -17,8 +17,7 @@ class lane_controller(object):
         self.lane_reading = None
         self.last_ms = None
         self.pub_counter = 0
-        self.go_straight = False
-        self.turn_right = False
+        self.turn_direction = None
 
         # Setup parameters
         self.velocity_to_m_per_s = 1.53
@@ -87,16 +86,10 @@ class lane_controller(object):
             self.cbPauseOperations,
             queue_size=1
         )
-        self.turn_right_sub = rospy.Subscriber(
-            '/%s/parking/turnright' % self.veh,
-            BoolStamped,
-            self.cbTurnRight,
-            queue_size=1
-        )
-        self.go_straight_sub = rospy.Subscriber(
-            '/%s/parking/gostraight' % self.veh,
-            BoolStamped,
-            self.cbGoStraight,
+        self.turn_direction_sub = rospy.Subscriber(
+            '/%s/parking/turn_direction' % self.veh,
+            String,
+            self.cbTurnDirection,
             queue_size=1
         )
 
@@ -150,14 +143,16 @@ class lane_controller(object):
         self.stop_line_detected = msg.stop_line_detected
 
 
-    def cbTurnRight(self, msg):
-        should_turnright = msg.data
-        self.turn_right = should_turnright
-
-
-    def cbGoStraight(self, msg):
-        should_gostraight = msg.data
-        self.go_straight = should_gostraight
+    def cbTurnDirection(self, msg):
+        direction = msg.data.lower()
+        if direction not in ['straight', 'right', 'left', 'none']:
+            return
+        if direction == 'none':
+            self.turn_direction = None
+        else:
+            self.turn_direction = direction
+        tup = (self.node_name, str(self.turn_direction))
+        rospy.loginfo('[%s] Set turn direction to %s' % tup)
 
 
     def setupParameter(self, param_name, default_value):
@@ -496,11 +491,15 @@ class lane_controller(object):
         omega += self.omega_ff
         car_control_msg.omega = omega
 
-        if self.go_straight:
+        if self.turn_direction == 'straight':
             car_control_msg.omega = 0.0
             car_control_msg.v = 0.23
-        elif self.turn_right:
-            car_control_msg.omega = -3.0
+        elif self.turn_direction == 'right':
+            car_control_msg.omega = -2.5
+            car_control_msg.v = 0.23
+        elif self.turn_direction == 'left':
+            # NOTE: Not tested, should probably be less (~1.5) since wider turn
+            car_control_msg.omega = 3.0
             car_control_msg.v = 0.23
 
         self.publishCmd(car_control_msg)

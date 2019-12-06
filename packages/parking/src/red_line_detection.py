@@ -57,9 +57,9 @@ class RedLine(DTROS):
         self.edges = np.empty(0)
 
 
-    def detectColor(self,data):
+    def detectColor(self, data):
         img = self.readImage(data)
-        img = img[230:, :]
+        img = img[235:, :]
 
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 

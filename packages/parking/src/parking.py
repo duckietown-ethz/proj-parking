@@ -5,12 +5,7 @@ import rospy
 import time
 from duckietown import DTROS
 from std_msgs.msg import String, Float64
-from duckietown_msgs.msg import (
-    BoolStamped,
-    Twist2DStamped,
-    WheelsCmdStamped,
-    FSMState
-)
+from duckietown_msgs.msg import BoolStamped
 from duckietown_msgs.srv import ChangePattern
 
 
@@ -54,7 +49,7 @@ class ParkingNode(DTROS):
         self.veh_name = rospy.get_namespace().strip("/")
         self.node_name = 'ParkingNode'
         self.state = ENTERING_PARKING_LOT
-        self.april_tag_num = 0
+        self.red_line_counter = 0
 
         # Services
         self.set_led_pattern = rospy.ServiceProxy(
@@ -78,14 +73,9 @@ class ParkingNode(DTROS):
             Float64,
             queue_size=1
         )
-        self.turn_right_pub = rospy.Publisher(
-            '~/%s/parking/turnright' % self.veh_name,
-            BoolStamped,
-            queue_size=1
-        )
-        self.go_straight_pub = rospy.Publisher(
-            '~/%s/parking/gostraight' % self.veh_name,
-            BoolStamped,
+        self.turn_direction_pub = rospy.Publisher(
+            '~/%s/parking/turn_direction' % self.veh_name,
+            String,
             queue_size=1
         )
 
@@ -102,16 +92,10 @@ class ParkingNode(DTROS):
             self.cbStopParking,
             queue_size=1
         )
-        self.redline_sub = rospy.Subscriber(
+        self.red_line_sub = rospy.Subscriber(
             '/%s/red_line' % self.veh_name,
             BoolStamped,
             self.cbRedLine,
-            queue_size=1
-        )
-        self.fsm_sub = rospy.Subscriber(
-            '/%s/parking/fsm_mode' % self.veh_name, #"~fsm_mode"
-            BoolStamped, #FSMState
-            self.cbFsmState,
             queue_size=1
         )
 
@@ -156,31 +140,36 @@ class ParkingNode(DTROS):
             self.pauseOperations(2)
 
             if self.state == ENTERING_PARKING_LOT:
-                self.turnRight() # Turn right to enter parking area
+                self.turn('right') # Turn right to enter parking area
                 self.transitionToNextState() # Begin searching
             elif self.state == SEARCHING:
-                self.goStraight() # Always go straight, if searching
-            elif self.state == EXITING_PARKING_LOT:
-                self.april_tag_num = self.aprilTagDetection()
-                if self.april_tag_num == 0:
-                    self.turnRight()
-                elif self.april_tag_num == 1:
-                    self.goStraight()
+                if self.red_line_counter % 2 == 0:
+                    # We are opposite the parking entrance/exit, so we
+                    # continue straight with normal lane following.
+                    # Pause for a few seconds to get past the red line
+                    rospy.sleep(4)
                 else:
-                    self.goStraight()
-
-
-    def cbFsmState(self, msg):
-        # TODO - should read the state of the state machine
-        # self.fsm_state = fsm_state_msg.state # String of current FSM state
-        # rospy.loginfo('fsm_state changed in lane_controller_node to: %s' % self.fsm_state)
-
-        if True:
-            return
-
-        if self.state == INACTIVE and msg == True: # instead of True here should be PARKING (the state of the fsm)
-            print("Changed to Parking fsm state")
-            # self.transitionToNextState()
+                    # We are at the parking entrance/exit but still searching
+                    # for parking. The Duckiebot would try to turn right,
+                    # so we force it to go straight here
+                    self.turn('straight')
+                self.red_line_counter += 1 # Passed a red line on outer loop
+            elif self.state == EXITING_PARKING_LOT:
+                if self.red_line_counter == -1:
+                    # Special flag of -1 means a right turn is a guaranteed exit
+                    self.turn('right')
+                if self.red_line_counter % 2 == 0:
+                    # Even number of red lines seen after entering parking lot,
+                    # so the Duckiebot parked in the first row. Go left to
+                    # continue moving around the loop, eventually to the exit.
+                    self.turn('left')
+                    # Set to special value -1, next red line = guaranteed exit
+                    self.red_line_counter = -1
+                else:
+                    # Odd number of red lines seen after entering parking lot,
+                    # so the Duckiebot parked in the second row. Go straight
+                    # to directly exit the parking lot.
+                    self.turn('straight')
 
     """
     #############################
@@ -213,14 +202,11 @@ class ParkingNode(DTROS):
         elif next_state == EXITING_PARKING_SPOT:
             self.setLEDs('red') # Set LEDs to red to indicate leaving parking
             self.pauseOperations(3) # Allow time for others to detect LEDs
-            self.turnRight() # Turn right to exit the parking spot
+            self.turn('right') # Turn right to exit the parking spot
             self.transitionToNextState() # Start exiting the parking lot
 
         elif next_state == EXITING_PARKING_LOT:
             self.startNormalLaneFollowing()
-
-        else:
-            pass # TODO - handle other states
 
 
     def pauseOperations(self, num_sec):
@@ -235,44 +221,32 @@ class ParkingNode(DTROS):
         self.updateDoffset(0.0) # d_offset=0 for normal lane following
         self.updateTopCutoff() # No top cutoff for normal lane following
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
-        reset_turns = BoolStamped()
-        reset_turns.header.stamp = rospy.Time.now()
-        reset_turns.data = False
-        self.turn_right_pub.publish(reset_turns) # No special maneuvers
-        self.go_straight_pub.publish(reset_turns)
+        self.turn('none') # No special maneuvers
 
 
-    def turnRight(self):
-        rospy.loginfo('[%s] Turning right' % self.node_name)
-        right = BoolStamped()
-        right.header.stamp = rospy.Time.now()
-        timeout = time.time() + 1.5 # 1.5 seconds from now
-        while True:
-            right.data = True
-            self.turn_right_pub.publish(right)
-            if time.time() > timeout:
-                right.data = False
-                self.turn_right_pub.publish(right)
-                break
+    def turn(self, direction, duration=1.5):
+        if direction not in ['straight', 'right', 'left', 'none']:
+            tup = (self.node_name, direction)
+            rospy.logerr('[%s] Invalid direction: %s' % tup)
+            return
 
+        def _deactivate(e):
+            no_turn = String()
+            no_turn.data = 'none'
+            self.turn_direction_pub.publish(no_turn)
+            tup = (self.node_name, direction)
+            rospy.loginfo('[%s] Finished turning %s' % tup)
 
-    def goStraight(self):
-        rospy.loginfo('[%s] Going straight' % self.node_name)
-        straight = BoolStamped()
-        straight.header.stamp = rospy.Time.now()
-        timeout = time.time() + 1.0 # 1.5 seconds from now
-        while True:
-            straight.data = True
-            self.go_straight_pub.publish(straight)
-            if time.time() > timeout:
-                straight.data = False
-                self.go_straight_pub.publish(straight)
-                break
+        if direction == 'none':
+            _deactivate(None)
+            return
 
-
-    def aprilTagDetection(self):
-        rospy.loginfo('[%s] Looking for April Tag number' % self.node_name)
-        return 0
+        rospy.loginfo('[%s] Turning %s' % (self.node_name, direction))
+        activate_turn = String()
+        activate_turn.data = direction
+        self.turn_direction_pub.publish(activate_turn)
+        rospy.sleep(duration)
+        _deactivate(None)
 
 
     def updateDoffset(self, new_offset):
