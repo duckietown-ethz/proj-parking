@@ -4,7 +4,5 @@
   <group ns="$(arg veh)">
     <node pkg="parking" type="parking.py" name="parking" output="screen"/>
     <node pkg="parking" type="free_parking_detection.py" name="parking_free" output="screen"/>
-    <node pkg="parking" type="red_line_detection.py" name="red_line" output="screen"/>
   </group>
-
 </launch>

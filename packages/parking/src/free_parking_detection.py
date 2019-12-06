@@ -32,7 +32,6 @@ class FreeParking(DTROS):
         self.updateParameters()
         # defining the topic names
         free_topic = "~/"+self.veh+"/free_parking/"
-        out_image_topic = "~/"+self.veh+"/camera_node/free_parking_image/compressed"
         camera_topic="/"+self.veh+"/camera_node/image/compressed"
 
         # Publishers
@@ -43,11 +42,8 @@ class FreeParking(DTROS):
 
         self.bridge = CvBridge()
         self.detection_threshold = 300
-        self.detect_green = True
         self.hsv_green1 = np.array([45, 100, 100])
         self.hsv_green2 = np.array([75, 255, 255])
-        self.hsv_blue1 = np.array([90, 100, 100])
-        self.hsv_blue2 = np.array([150, 255, 255])
         self.dilation_kernel_size = 3
         self.edges = np.empty(0)
 
@@ -60,9 +56,7 @@ class FreeParking(DTROS):
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         #detect green
-        lower_bound = self.hsv_green1 if self.detect_green else self.hsv_blue1
-        upper_bound = self.hsv_green2 if self.detect_green else self.hsv_blue2
-        bw = cv2.inRange(hsv, lower_bound, upper_bound)
+        bw = cv2.inRange(hsv, self.hsv_green1, self.hsv_green2)
 
 
         # binary dilation
@@ -76,8 +70,8 @@ class FreeParking(DTROS):
         msg = BoolStamped()
         msg.header.stamp = rospy.Time.now()
         msg.data = detected
-        self.is_free_pub.publish(msg)
-
+        if detected :
+            self.is_free_pub.publish(msg)
 
     def readImage(self, msg_image):
         """Convert images to OpenCV images

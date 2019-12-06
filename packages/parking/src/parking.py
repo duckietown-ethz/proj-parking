@@ -4,14 +4,13 @@ import os
 import rospy
 import time
 from duckietown import DTROS
-from std_msgs.msg import String, Float64
+from std_msgs.msg import String, Float64, Int16
 from duckietown_msgs.msg import (
     BoolStamped,
     Twist2DStamped,
     WheelsCmdStamped
 )
-from duckietown_msgs.srv import ChangePattern
-
+#from duckietown_msgs.srv import ChangePattern
 
 """
 #############################
@@ -26,6 +25,7 @@ IS_PARKING = 3
 IS_PARKED = 4
 EXITING_PARKING_SPOT = 5
 EXITING_PARKING_LOT = 6
+WAITING_FOR_EXITING_DBOT = 7
 
 ALL_STATES = [
     INACTIVE,
@@ -34,7 +34,8 @@ ALL_STATES = [
     IS_PARKING,
     IS_PARKED,
     EXITING_PARKING_SPOT,
-    EXITING_PARKING_LOT
+    EXITING_PARKING_LOT,
+    WAITING_FOR_EXITING_DBOT
 ]
 
 speed = 1.0
@@ -54,13 +55,13 @@ class ParkingNode(DTROS):
 
         self.veh_name = rospy.get_namespace().strip("/")
         self.node_name = 'ParkingNode'
-        self.state = SEARCHING
+        self.state = IS_PARKED#SEARCHING
 
         # Services
-        self.set_led_pattern = rospy.ServiceProxy(
-            '/%s/led_emitter_node/set_pattern' % self.veh_name,
-            ChangePattern
-        )
+        #self.set_led_pattern = rospy.ServiceProxy(
+        #    '/%s/led_emitter_node/set_pattern' % self.veh_name,
+        #    ChangePattern
+        #)
 
         # Publishers
         self.d_offset_pub = rospy.Publisher(
@@ -78,6 +79,7 @@ class ParkingNode(DTROS):
             Float64,
             queue_size=1
         )
+        
         self.pub_wheel_cmd = rospy.Publisher(
             '~/%s/wheels_driver_node/wheels_cmd' % self.veh_name,
             WheelsCmdStamped,
@@ -107,7 +109,18 @@ class ParkingNode(DTROS):
             self.cbStopParking,
             queue_size=1
         )
+        """self.sub_mode = rospy.Subscriber(
+            "~fsm_mode", 
+            FSMState, 
+            self.cbModeFSM, 
+            queue_size = 1
+        )"""
+        
+        # Set the current finite state machine state to PARKING
+        #self.fsm_mode = self.setupParameter("~initial_mode","PARKING")
 
+
+        self.transitionToNextState()
         rospy.loginfo('[%s] Initialized' % self.node_name)
 
     """
@@ -115,6 +128,16 @@ class ParkingNode(DTROS):
     ######### CALLBACKS #########
     #############################
     """
+    """def cbModeFSM(self, data):
+        self.fsm_mode = data.state
+        if self.fsm_mode == self.reset_mode:
+            self.actions = []
+            rospy.wait_for_service('graph_search')
+            graph_search = rospy.ServiceProxy('graph_search', GraphSearch)
+            graph_search('0', '0')
+        elif self.localization_mode != "none" and self.fsm_mode == self.localization_mode:
+            self.pubLocalized()
+        self.dispatcher()"""
 
     def cbParkingFree(self, msg):
         # We only care about finding a free spot if we're searching
@@ -128,6 +151,21 @@ class ParkingNode(DTROS):
 
 
     def cbStopParking(self, msg):
+        
+        rospy.loginfo('parking.py stop_parking=%s' % str(msg.data))
+
+        """######################################
+        ### Leave/Stay in the parking area ###
+        ######################################
+        if self.state == EXITING_PARKING_LOT:
+            # turn right as in the intersection
+            self.pub_turn_type.publish(2)# this mystical number correspond to the array ordering in open_loop_intersection_control_node
+        if self.state != IS_PARKING:
+            # turn left as in the intersection
+            self.pub_turn_type.publish(1)# this mystical number correspond to the array ordering in open_loop_intersection_control_node
+        
+        """
+        
         # We only care about stopping parking if we're currently parking
         if self.state != IS_PARKING:
             return
@@ -137,12 +175,25 @@ class ParkingNode(DTROS):
             rospy.loginfo('[%s] Stop parking maneuver!' % self.node_name)
             self.transitionToNextState()
 
+    def cbVehicleAvoidanceControl(self, twist):
+        # We will only stop for another Duckiebot in certain states
+        if self.state not in [SEARCHING, IS_PARKED]:
+            return
+
+        if twist.v == 0 and twist.omega == 0:
+            rospy.loginfo('[%s] Vehicle avoidance wants to stop!' % self.node_name)
+            # self.pauseOperations(10)
 
     """
     #############################
     ###### HELPER FUNCTIONS #####
     #############################
     """
+    def setupParameter(self,param_name,default_value):
+        value = rospy.get_param(param_name,default_value)
+        rospy.set_param(param_name,value) #Write to parameter server for transparancy
+        rospy.loginfo("[%s] %s = %s " %(self.node_name,param_name,value))
+        return value
 
     def transitionToNextState(self):
         next_state = self.state + 1
@@ -162,6 +213,7 @@ class ParkingNode(DTROS):
             self.transitionToNextState() # Start exiting the parking spot
 
         elif next_state == EXITING_PARKING_SPOT:
+            self.updateLaneFilterColor('blue') # Follow blue lane, not yellow
             self.setLEDs('red') # Set LEDs to red to indicate leaving parking
             self.pauseOperations(3) # Allow time for others to detect LEDs
             self.driveBackwards() # Begin maneuver to exit parking spot
@@ -222,7 +274,7 @@ class ParkingNode(DTROS):
             rospy.loginfo('[%s] Settings LEDs to %s' % (self.node_name, msg))
             pattern = String()
             pattern.data = msg
-            self.set_led_pattern(pattern)
+            #self.set_led_pattern(pattern)
 
 
 if __name__ == '__main__':
