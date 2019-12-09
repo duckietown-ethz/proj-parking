@@ -58,7 +58,7 @@ class FreeParking(DTROS):
 
 
     def lowerLeftImage(self, full_image):
-        return full_image[WIDTH//2:, :HEIGHT//2]
+        return full_image[160:, :120]
 
 
     def detectColor(self, data):
