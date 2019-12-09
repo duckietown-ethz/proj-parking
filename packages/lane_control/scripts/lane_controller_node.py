@@ -11,18 +11,20 @@ import numpy as np
 
 class lane_controller(object):
 
+    """
+    #############################
+    ####### INITIALIZATION ######
+    #############################
+    """
+
     def __init__(self):
         self.node_name = rospy.get_name()
         self.veh = os.environ['VEHICLE_NAME']
-        self.lane_reading = None
-        self.last_ms = None
-        self.pub_counter = 0
-        self.reverse_var = False
 
         # Setup parameters
         self.velocity_to_m_per_s = 1.53
         self.omega_to_rad_per_s = 4.75
-        self.setGains()
+        self.resetControllerState()
 
         # Publications
         self.pub_car_cmd = rospy.Publisher(
@@ -45,27 +47,27 @@ class lane_controller(object):
         self.sub_lane_reading = rospy.Subscriber(
             "~lane_pose",
             LanePose,
-            self.poseHandling,
+            self.cbPoseHandling,
             "lane_filter",
             queue_size=1
         )
         self.sub_intersection_navigation_pose = rospy.Subscriber(
             "~intersection_navigation_pose",
             LanePose,
-            self.poseHandling,
+            self.cbPoseHandling,
             "intersection_navigation",
             queue_size=1
         )
         self.sub_wheels_cmd_executed = rospy.Subscriber(
             "~wheels_cmd_executed",
             WheelsCmdStamped,
-            self.updateWheelsCmdExecuted,
+            self.cbUpdateWheelsCmdExecuted,
             queue_size=1
         )
         self.sub_actuator_limits = rospy.Subscriber(
             "~actuator_limits",
             Twist2DStamped,
-            self.updateActuatorLimits,
+            self.cbUpdateActuatorLimits,
             queue_size=1
         )
         self.sub_stop_line = rospy.Subscriber(
@@ -117,42 +119,23 @@ class lane_controller(object):
         self.gains_timer = rospy.Timer(rospy.Duration.from_sec(0.1), self.getGains_event)
         rospy.loginfo("[%s] Initialized " % (rospy.get_name()))
 
-        self.stop_line_distance = 999
-        self.stop_line_detected = False
-
-
-    def cbDoffset(self, msg):
-        rospy.set_param("~d_offset", msg.data)
-        self.d_offset = msg.data
-        rospy.loginfo('[%s] Updating d_offset to %f' % (self.node_name, self.d_offset))
-
-
-    def cbPauseOperations(self, msg):
-        num_sec = msg.data
-        rospy.loginfo('[%s] Pausing operations for %.1f seconds' % (self.node_name, num_sec))
-        self.active = False
-        self.sendStop()
-        rospy.sleep(num_sec)
-        self.active = True
-
-
-    def cbStopLineReading(self, msg):
-        self.stop_line_distance = np.sqrt(
-            msg.stop_line_point.x**2 + msg.stop_line_point.y**2 + msg.stop_line_point.z**2
-        )
-        self.stop_line_detected = msg.stop_line_detected
-
-
-    def cbReverse(self, msg):
-        should_reverse = msg.data
-        self.reverse_var = should_reverse
-
 
     def setupParameter(self, param_name, default_value):
         value = rospy.get_param(param_name, default_value)
         rospy.set_param(param_name, value)
-        rospy.loginfo("[%s] %s = %s " %(self.node_name, param_name, value))
+        rospy.logdebug("[%s] %s = %s " % (self.node_name, param_name, value))
         return value
+
+
+    def resetControllerState(self):
+        self.lane_reading = None
+        self.last_ms = None
+        self.pub_counter = 0
+        self.should_reverse = False
+        self.stop_line_distance = 999
+        self.stop_line_detected = False
+        self.past_time = 0
+        self.setGains()
 
 
     def setGains(self):
@@ -193,12 +176,10 @@ class lane_controller(object):
         self.pose_msg = LanePose()
         self.pose_initialized = False
         self.pose_msg_dict = dict()
-        self.v_ref_possible = dict()
+        self.v_ref_possible = {'default': self.v_max, 'main_pose': v_bar_fallback}
         self.main_pose_source = None
 
         self.active = True
-
-        self.sleepMaintenance = False
 
         # overwrites some of the above set default values (the ones that are already defined in the corresponding yaml-file (see launch-file of this node))
 
@@ -229,7 +210,6 @@ class lane_controller(object):
         self.d_ref = self.setupParameter("~d_ref", 0)
         self.phi_ref = self.setupParameter("~phi_ref",0)
         self.object_detected = self.setupParameter("~object_detected", 0)
-        self.v_ref_possible["default"] = self.v_max
 
 
     def getGains_event(self, event):
@@ -284,26 +264,53 @@ class lane_controller(object):
                 self.msg_radius_limit.data = self.use_radius_limit
                 self.pub_radius_limit.publish(self.msg_radius_limit)
 
-
-    def cbSwitch(self,fsm_switch_msg):
-        self.active = fsm_switch_msg.data   # True or False
-        rospy.loginfo("active: " + str(self.active))
-
-
-    def unsleepMaintenance(self, event):
-        self.sleepMaintenance = False
-
+    """
+    #############################
+    ######### CALLBACKS #########
+    #############################
+    """
 
     def cbMode(self,fsm_state_msg):
         self.fsm_state = fsm_state_msg.state # String of current FSM state
         rospy.loginfo('fsm_state changed in lane_controller_node to: %s' % self.fsm_state)
+        self.resetControllerState()
+        rospy.loginfo('[%s] Controller state has been reset.' % self.node_name)
 
 
-    def poseHandling(self, input_pose_msg, pose_source):
+    def cbDoffset(self, msg):
+        rospy.set_param("~d_offset", msg.data)
+        self.d_offset = msg.data
+        rospy.loginfo('[%s] Updating d_offset to %f' % (self.node_name, self.d_offset))
+
+
+    def cbPauseOperations(self, msg):
+        num_sec = msg.data
+        rospy.loginfo('[%s] Pausing operations for %.1f seconds' % (self.node_name, num_sec))
+        self.active = False
+        self.sendStop()
+        rospy.sleep(num_sec)
+        self.active = True
+
+
+    def cbStopLineReading(self, msg):
+        self.stop_line_distance = np.sqrt(
+            msg.stop_line_point.x**2 + msg.stop_line_point.y**2 + msg.stop_line_point.z**2
+        )
+        self.stop_line_detected = msg.stop_line_detected
+
+
+    def cbReverse(self, msg):
+        should_reverse = msg.data
+        self.should_reverse = should_reverse
+
+
+    def cbSwitch(self, fsm_switch_msg):
+        self.active = fsm_switch_msg.data # True or False
+        rospy.loginfo("active: " + str(self.active))
+
+
+    def cbPoseHandling(self, input_pose_msg, pose_source):
         if not self.active:
-            return
-
-        if self.sleepMaintenance:
             return
 
         self.prev_pose_msg = self.pose_msg
@@ -348,11 +355,11 @@ class lane_controller(object):
             self.updatePose(self.pose_msg)
 
 
-    def updateWheelsCmdExecuted(self, msg_wheels_cmd):
+    def cbUpdateWheelsCmdExecuted(self, msg_wheels_cmd):
         self.wheels_cmd_executed = msg_wheels_cmd
 
 
-    def updateActuatorLimits(self, msg_actuator_limits):
+    def cbUpdateActuatorLimits(self, msg_actuator_limits):
         self.actuator_limits = msg_actuator_limits
         rospy.logdebug("actuator limits updated to: ")
         rospy.logdebug("actuator_limits.v: " + str(self.actuator_limits.v))
@@ -361,6 +368,11 @@ class lane_controller(object):
         msg_actuator_limits_received.data = True
         self.pub_actuator_limits_received.publish(msg_actuator_limits_received)
 
+    """
+    #############################
+    ###### HELPER FUNCTIONS #####
+    #############################
+    """
 
     def sendStop(self):
         # Send stop command
@@ -393,6 +405,19 @@ class lane_controller(object):
 
 
     def updatePose(self, pose_msg):
+        if self.should_reverse:
+            backward = -1
+            self.k_d = 3.0
+            self.k_theta = 1
+            self.k_Id = -1
+            self.k_Iphi = -1
+        else:
+            backward = 1
+            self.k_d = -3.5
+            self.k_theta = -1
+            self.k_Id = 1
+            self.k_Iphi = 0
+
         self.lane_reading = pose_msg
 
         # Calculating the delay image processing took
@@ -406,7 +431,7 @@ class lane_controller(object):
         prev_heading_err = self.heading_err
 
         self.cross_track_err = pose_msg.d - self.d_offset
-        self.heading_err = pose_msg.phi
+        self.heading_err = backward * pose_msg.phi
 
         car_control_msg = Twist2DStamped()
         car_control_msg.header = pose_msg.header
@@ -417,8 +442,8 @@ class lane_controller(object):
             car_control_msg.v = self.actuator_limits.v
 
         if math.fabs(self.cross_track_err) > self.d_thres:
-            rospy.logerr("cross_track_err > d_thres")
-            self.cross_track_err = self.cross_track_err / math.fabs(self.cross_track_err) * self.d_thres
+            rospy.logerr("Inside threshold")
+            self.cross_track_err = np.sign(self.cross_track_err) * self.d_thres
 
         currentMillis = int(round(time.time() * 1000))
 
@@ -456,7 +481,7 @@ class lane_controller(object):
         # Scale the parameters linear such that their real value is at 0.22m/s
         omega = self.k_d * (0.22/self.v_bar) * self.cross_track_err + \
             self.k_theta * (0.22/self.v_bar) * self.heading_err
-        omega += omega_feedforward
+        omega += backward * omega_feedforward
 
         # check if nominal omega satisfies min radius, otherwise constrain it to minimal radius
         if math.fabs(omega) > car_control_msg.v / self.min_radius:
@@ -477,18 +502,13 @@ class lane_controller(object):
             car_control_msg.v = 0.065 + 0.5 * math.fabs(omega) * 0.1
 
         # apply magic conversion factors
-        car_control_msg.v = car_control_msg.v * self.velocity_to_m_per_s
+        car_control_msg.v = backward * car_control_msg.v * self.velocity_to_m_per_s
         omega = omega * self.omega_to_rad_per_s
 
-        omega = min(self.omega_max, max(self.omega_min, omega))
-        omega += self.omega_ff
+        if omega > self.omega_max: omega = self.omega_max
+        if omega < self.omega_min: omega = self.omega_min
+        omega += backward * self.omega_ff
         car_control_msg.omega = omega
-
-        if self.reverse_var:
-            # Open loop
-            car_control_msg.omega = -2.0
-            # Closed Loop
-            car_control_msg.v = -car_control_msg.v
 
         self.publishCmd(car_control_msg)
         self.last_ms = currentMillis
