@@ -77,6 +77,11 @@ class ParkingNode(DTROS):
             BoolStamped,
             queue_size=1
         )
+        self.pub_joystick_control = rospy.Publisher(
+            'joy_mapper_node/joystick_override',
+            BoolStamped,
+            queue_size=1
+        )
 
         # Subscribers
         self.free_parking_sub = rospy.Subscriber(
@@ -153,12 +158,11 @@ class ParkingNode(DTROS):
         elif next_state == EXITING_PARKING_SPOT:
             self.setLEDs('red') # Set LEDs to red to indicate leaving parking
             self.pauseOperations(3) # Allow time for others to detect LEDs
-            self.driveBackwards(1.8) # Begin maneuver to exit parking spot
+            self.driveBackwards(2.1) # Begin maneuver to exit parking spot
 
         elif next_state == EXITING_PARKING_LOT:
             self.pauseOperations(2)
             self.startNormalLaneFollowing()
-            self.pauseOperations(2)
 
 
     def pauseOperations(self, num_sec):
@@ -203,11 +207,23 @@ class ParkingNode(DTROS):
         self.lane_filter_color_pub.publish(desired_color)
 
 
-    def startNormalLaneFollowing(self):
+    def startNormalLaneFollowing(self, restart=True):
         self.setLEDs('white') # Set LEDs to white (normal operation)
-        self.updateDoffset(0.0) # d_offset=0 for normal lane following
+        self.updateDoffset(0) # d_offset=0 for normal lane following
         self.updateTopCutoff() # No top cutoff for normal lane following
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
+        if restart:
+            self.restartLaneFollowing()
+
+
+    def restartLaneFollowing(self):
+        override = BoolStamped()
+        override.header.stamp = rospy.Time.now()
+        override.data = True # Activate joystick control
+        self.pub_joystick_control.publish(override)
+        rospy.sleep(1) # Allow time for FSM state transition
+        override.data = False # Deactivate joystick --> activate lane following
+        self.pub_joystick_control.publish(override)
 
 
     def setLEDs(self, pattern):
