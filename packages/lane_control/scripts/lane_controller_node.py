@@ -17,7 +17,7 @@ class lane_controller(object):
         self.lane_reading = None
         self.last_ms = None
         self.pub_counter = 0
-        self.reverse_var = False
+        self.should_reverse = False
 
         # Setup parameters
         self.velocity_to_m_per_s = 1.53
@@ -145,7 +145,7 @@ class lane_controller(object):
 
     def cbReverse(self, msg):
         should_reverse = msg.data
-        self.reverse_var = should_reverse
+        self.should_reverse = should_reverse
 
 
     def setupParameter(self, param_name, default_value):
@@ -484,7 +484,7 @@ class lane_controller(object):
         omega += self.omega_ff
         car_control_msg.omega = omega
 
-        if self.reverse_var:
+        if self.should_reverse:
             # Open loop
             car_control_msg.omega = -2.0
             # Closed Loop

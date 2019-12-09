@@ -2,27 +2,21 @@
 import rospy
 import cv2
 import os
+import numpy as np
 
 from cv_bridge import CvBridge, CvBridgeError
-from sensor_msgs.msg import CompressedImage, Image
-from duckietown_msgs.msg import (
-    Segment,
-    SegmentList,
-    Vector2D,
-    BoolStamped
-)
-
-from visualization_msgs.msg import Marker
-from geometry_msgs.msg import Point
-import numpy as np
+from sensor_msgs.msg import CompressedImage
+from duckietown_msgs.msg import BoolStamped
 
 from duckietown import DTROS
 
+WIDTH = 320
+HEIGHT = 240
 
 class RedLine(DTROS):
     """
-        This node publishs a boolean value
-        if the parking spot is free the value is true, false otherwise
+        This node detects the color red at the bottom of an image,
+        and publishes a boolean `True` if enough red is seen.
     """
     def __init__(self, node_name):
         # Initialize the DTROS parent class
@@ -30,37 +24,42 @@ class RedLine(DTROS):
         self.veh = os.environ['VEHICLE_NAME']
 
         # Adjust camera resolution
-        rospy.set_param('/'+self.veh+'/camera_node/res_w', 320)
-        rospy.set_param('/'+self.veh+'/camera_node/res_h', 240)
-        rospy.set_param('/'+self.veh+'/camera_node/exposure_mode', 'off')
+        rospy.set_param('/%s/camera_node/res_w' % self.veh, WIDTH)
+        rospy.set_param('/%s/camera_node/res_h' % self.veh, HEIGHT)
+        rospy.set_param('/%s/camera_node/exposure_mode' % self.veh, 'off')
 
         self.updateParameters()
 
-        # defining the topic names
-        red_topic = "~/"+self.veh+"/red_line/"
-        out_image_topic = "~/"+self.veh+"/camera_node/red_image/compressed"
-        camera_topic="/"+self.veh+"/camera_node/image/compressed"
-
         # Publishers
-        self.red_pub = rospy.Publisher(red_topic, BoolStamped, queue_size=1)
+        self.red_pub = rospy.Publisher(
+            "~/%s/red_line/" % self.veh,
+            BoolStamped,
+            queue_size=1
+        )
 
         # Subscribers
-        self.camera = rospy.Subscriber(camera_topic, CompressedImage, self.detectColor)
+        self.camera = rospy.Subscriber(
+            '/%s/camera_node/image/compressed' % self.veh,
+            CompressedImage,
+            self.detectColor
+        )
 
         self.bridge = CvBridge()
         self.detection_threshold = 300
-        self.hsv_red1 = np.array([0,140,100])
-        self.hsv_red2 = np.array([15,255,255])
-        self.hsv_red3 = np.array([165,140,100])
-        self.hsv_red4 = np.array([180,255,255])
+        self.hsv_red1 = np.array([0, 140, 100])
+        self.hsv_red2 = np.array([15, 255, 255])
+        self.hsv_red3 = np.array([165, 140, 100])
+        self.hsv_red4 = np.array([180, 255, 255])
         self.dilation_kernel_size = 3
         self.edges = np.empty(0)
 
 
-    def detectColor(self,data):
-        img = self.readImage(data)
-        img = img[230:, :]
+    def bottomOfImage(self, full_image):
+        return full_image[HEIGHT-5:, :]
 
+
+    def detectColor(self,data):
+        img = self.bottomOfImage(self.readImage(data))
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         # detect red
@@ -69,10 +68,10 @@ class RedLine(DTROS):
         bw = cv2.bitwise_or(bw1, bw2)
 
         # binary dilation
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
-                                           (self.dilation_kernel_size, self.dilation_kernel_size))
+        kernel_size = (self.dilation_kernel_size, self.dilation_kernel_size)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, kernel_size)
         bw = cv2.dilate(bw, kernel)
-        color_count = np.sum(bw/255)
+        color_count = np.sum(bw / 255)
         detected = (color_count > self.detection_threshold)
 
         msg = BoolStamped()
@@ -98,6 +97,6 @@ class RedLine(DTROS):
 
 if __name__ == '__main__':
     # Initialize the node
-    camera_node = RedLine(node_name='red_line')
+    detector_node = RedLine(node_name='red_line')
     # Keep it spinning to keep the node alive
     rospy.spin()
