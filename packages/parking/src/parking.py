@@ -6,7 +6,7 @@ import time
 from duckietown import DTROS
 from std_msgs.msg import String, Float64
 from duckietown_msgs.msg import BoolStamped
-from duckietown_msgs.srv import ChangePattern
+#from duckietown_msgs.srv import ChangePattern
 
 
 """
@@ -48,14 +48,14 @@ class ParkingNode(DTROS):
 
         self.veh_name = rospy.get_namespace().strip("/")
         self.node_name = 'ParkingNode'
-        self.state = ENTERING_PARKING_LOT
+        self.state = SEARCHING#IS_PARKED#ENTERING_PARKING_LOT
         self.red_line_counter = 0
 
         # Services
-        self.set_led_pattern = rospy.ServiceProxy(
-            '/%s/led_emitter_node/set_pattern' % self.veh_name,
-            ChangePattern
-        )
+        #self.set_led_pattern = rospy.ServiceProxy(
+        #    '/%s/led_emitter_node/set_pattern' % self.veh_name,
+        #    ChangePattern
+        #)
 
         # Publishers
         self.d_offset_pub = rospy.Publisher(
@@ -79,6 +79,12 @@ class ParkingNode(DTROS):
             queue_size=1
         )
 
+        self.back_exit_pub = rospy.Publisher(
+            '~/%s/parking/back_exit' % self.veh_name,
+            BoolStamped,
+            queue_size=1
+        )
+
         # Subscribers
         self.free_parking_sub = rospy.Subscriber(
             '/%s/parking/free_parking' % self.veh_name,
@@ -99,6 +105,17 @@ class ParkingNode(DTROS):
             queue_size=1
         )
 
+        # start again without rerunning
+
+        """self.red_line_sub = rospy.Subscriber(
+            '/%s/parking/start_from' % self.veh_name,
+            BoolStamped,
+            self.cdRestart,
+            queue_size=1
+        )"""
+
+        #self.pauseOperations(5)
+        #self.transitionToNextState()
         rospy.loginfo('[%s] Initialized' % self.node_name)
 
     """
@@ -107,12 +124,23 @@ class ParkingNode(DTROS):
     #############################
     """
 
+    """def cdRestart(self,msg):
+        self.state = SEARCHING
+    """
     def cbParkingFree(self, msg):
+
+        found_free_parking_spot = msg.data == True
         # We only care about finding a free spot if we're searching
+        if self.state == EXITING_PARKING_SPOT:
+            if found_free_parking_spot:
+                rospy.loginfo('[%s] Exited parking spot!' % self.node_name)
+                self.pauseOperations(2)
+                self.turn('left')
+                self.transitionToNextState()
+
         if self.state != SEARCHING:
             return
 
-        found_free_parking_spot = msg.data == True
         if found_free_parking_spot:
             rospy.loginfo('[%s] Found a free parking spot!' % self.node_name)
             self.transitionToNextState()
@@ -194,20 +222,28 @@ class ParkingNode(DTROS):
             self.pauseOperations(2) # Pause for 2 sec before continuing
 
         elif next_state == IS_PARKED:
-            self.updateTopCutoff() # No longer need to cut off top of image
+             # No longer need to cut off top of image
+            rospy.loginfo('[%s] IS_PARKED' % (self.node_name))
             self.setLEDs('off') # Turn off LEDs while parked
             self.pauseOperations(5) # Stay in the parking spot a certain time
             self.transitionToNextState() # Start exiting the parking spot
 
         elif next_state == EXITING_PARKING_SPOT:
-            self.setLEDs('red') # Set LEDs to red to indicate leaving parking
-            self.pauseOperations(3) # Allow time for others to detect LEDs
-            self.turn('right') # Turn right to exit the parking spot
-            self.transitionToNextState() # Start exiting the parking lot
+            rospy.loginfo('[%s] EXITING_PARKING_SPOT' % (self.node_name))
+            self.startBackLaneFollowing()
+            #self.turn('right') # Turn right to exit the parking spot
+            #self.transitionToNextState() # Start exiting the parking lot
 
         elif next_state == EXITING_PARKING_LOT:
+            rospy.loginfo('[%s] EXITING_PARKING_LOT' % (self.node_name))
+            self.pauseOperations(5)
             self.startNormalLaneFollowing()
 
+    def publish_exit(self,value):
+        msg = BoolStamped()
+        msg.header.stamp = rospy.Time.now()
+        msg.data = value
+        self.back_exit_pub.publish(msg)
 
     def pauseOperations(self, num_sec):
         tup = (self.node_name, num_sec)
@@ -221,8 +257,16 @@ class ParkingNode(DTROS):
         self.updateDoffset(0.0) # d_offset=0 for normal lane following
         self.updateTopCutoff() # No top cutoff for normal lane following
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
+        self.publish_exit(False)
         self.turn('none') # No special maneuvers
 
+    def startBackLaneFollowing(self):
+        self.updateTopCutoff(50)
+        self.updateDoffset(0.118)
+        self.setLEDs('red') # Set LEDs to red to indicate leaving parking
+        self.updateLaneFilterColor('blue')
+        self.publish_exit(True)
+        self.turn('none') # No special maneuvers
 
     def turn(self, direction, duration=1.5):
         if direction not in ['straight', 'right', 'left', 'none']:
@@ -285,7 +329,7 @@ class ParkingNode(DTROS):
             rospy.loginfo('[%s] Settings LEDs to %s' % (self.node_name, msg))
             pattern = String()
             pattern.data = msg
-            self.set_led_pattern(pattern)
+            #self.set_led_pattern(pattern)
 
 
 if __name__ == '__main__':

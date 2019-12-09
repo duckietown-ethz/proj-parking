@@ -6,8 +6,9 @@ import numpy as np
 import rospy
 from duckietown_msgs.msg import Twist2DStamped, LanePose, WheelsCmdStamped, BoolStamped, FSMState, StopLineReading
 import time
-from std_msgs.msg import Float64, String
+from std_msgs.msg import Float64, String, Float64
 import numpy as np
+
 
 class lane_controller(object):
 
@@ -17,7 +18,7 @@ class lane_controller(object):
         self.lane_reading = None
         self.last_ms = None
         self.pub_counter = 0
-        self.turn_direction = None
+        self.reverse_var = False
 
         # Setup parameters
         self.velocity_to_m_per_s = 1.53
@@ -86,12 +87,13 @@ class lane_controller(object):
             self.cbPauseOperations,
             queue_size=1
         )
-        self.turn_direction_sub = rospy.Subscriber(
-            '/%s/parking/turn_direction' % self.veh,
-            String,
-            self.cbTurnDirection,
+        self.reverse_sub = rospy.Subscriber(
+            '/%s/parking/back_exit' % self.veh,
+            BoolStamped,
+            self.cbReverse,
             queue_size=1
         )
+
 
         # FSM
         self.sub_switch = rospy.Subscriber(
@@ -107,6 +109,24 @@ class lane_controller(object):
             queue_size=1
         )
 
+        # TUNE PID
+
+        """red3="/"+self.veh+"/d_p"
+        red4="/"+self.veh+"/phi_p"
+        rospy.Subscriber(red3, Float64, self.red1)
+        rospy.Subscriber(red4, Float64, self.red2)
+        self.setK_d=3.0
+        self.k_theta=1"""
+
+
+        ########## CHECK BACKWARD
+        self.reverse_sub = rospy.Subscriber(
+            '/%s/parking/back_exit' % self.veh,
+            BoolStamped,
+            self.cbReverse,
+            queue_size=1
+        )
+        
         self.msg_radius_limit = BoolStamped()
         self.msg_radius_limit.data = self.use_radius_limit
         self.pub_radius_limit.publish(self.msg_radius_limit)
@@ -120,7 +140,20 @@ class lane_controller(object):
         self.stop_line_distance = 999
         self.stop_line_detected = False
 
+        #init the controller
+        self.past_time=0
 
+
+    """def red1(self,msg):
+        self.setK_d = msg
+        rospy.loginfo("New K_d  paramaeter [%s] ",self.setK_d )
+
+    def red2(self,msg):
+        self.k_theta = msg
+        rospy.loginfo("New K_theta  paramaeter [%s] ",self.k_theta )"""
+
+
+        
     def cbDoffset(self, msg):
         rospy.set_param("~d_offset", msg.data)
         self.d_offset = msg.data
@@ -135,7 +168,6 @@ class lane_controller(object):
         rospy.sleep(num_sec)
         self.active = True
 
-
     def cbStopLineReading(self, msg):
         self.stop_line_distance = np.sqrt(
             msg.stop_line_point.x**2 + msg.stop_line_point.y**2 + msg.stop_line_point.z**2
@@ -143,22 +175,16 @@ class lane_controller(object):
         self.stop_line_detected = msg.stop_line_detected
 
 
-    def cbTurnDirection(self, msg):
-        direction = msg.data.lower()
-        if direction not in ['straight', 'right', 'left', 'none']:
-            return
-        if direction == 'none':
-            self.turn_direction = None
-        else:
-            self.turn_direction = direction
-        tup = (self.node_name, str(self.turn_direction))
-        rospy.loginfo('[%s] Set turn direction to %s' % tup)
+    def cbReverse(self, msg):
+        rospy.loginfo("[%s] Reverse "% self.node_name)
+        should_reverse = msg.data
+        self.reverse_var = should_reverse
 
 
     def setupParameter(self, param_name, default_value):
         value = rospy.get_param(param_name, default_value)
         rospy.set_param(param_name, value)
-        rospy.loginfo("[%s] %s = %s " % (self.node_name, param_name, value))
+        rospy.loginfo("[%s] %s = %s " %(self.node_name, param_name, value))
         return value
 
 
@@ -263,7 +289,6 @@ class lane_controller(object):
         k_Iphi = rospy.get_param("~k_Iphi")
 
         if self.k_Id != k_Id:
-            rospy.loginfo("ADJUSTED I GAIN")
             self.cross_track_integral = 0
             self.k_Id = k_Id
 
@@ -398,8 +423,27 @@ class lane_controller(object):
     def publishCmd(self, car_cmd_msg):
         self.pub_car_cmd.publish(car_cmd_msg)
 
-
     def updatePose(self, pose_msg):
+        
+        if self.reverse_var:
+            #rospy.loginfo("BACKWARD")
+
+            backward = -1
+            self.k_d = 3#3.0
+            self.k_theta = 1#1
+            self.k_Id = -1
+            self.k_Iphi = -1
+        else:
+            backward = 1
+            self.k_d = -3.5
+            self.k_theta = -1
+            self.k_Id = 1
+            self.k_Iphi = 0
+            # Open loop
+            #car_control_msg.omega = -2.0
+            # Closed Loop
+            #car_control_msg.v = -car_control_msg.v
+        
         self.lane_reading = pose_msg
 
         # Calculating the delay image processing took
@@ -413,7 +457,7 @@ class lane_controller(object):
         prev_heading_err = self.heading_err
 
         self.cross_track_err = pose_msg.d - self.d_offset
-        self.heading_err = pose_msg.phi
+        self.heading_err = backward*pose_msg.phi
 
         car_control_msg = Twist2DStamped()
         car_control_msg.header = pose_msg.header
@@ -424,8 +468,8 @@ class lane_controller(object):
             car_control_msg.v = self.actuator_limits.v
 
         if math.fabs(self.cross_track_err) > self.d_thres:
-            rospy.logerr("cross_track_err > d_thres")
-            self.cross_track_err = self.cross_track_err / math.fabs(self.cross_track_err) * self.d_thres
+            rospy.logerr("inside threshold ")
+            self.cross_track_err = np.sign(self.cross_track_err) * self.d_thres
 
         currentMillis = int(round(time.time() * 1000))
 
@@ -460,10 +504,13 @@ class lane_controller(object):
         if self.main_pose_source == "lane_filter":
             omega_feedforward = 0
 
-        # Scale the parameters linear such that their real value is at 0.22m/s
-        omega = self.k_d * (0.22/self.v_bar) * self.cross_track_err + \
-            self.k_theta * (0.22/self.v_bar) * self.heading_err
-        omega += omega_feedforward
+        # Scale the parameters linear such that their real value is at 0.22m/s TODO do this nice that  * (0.22/self.v_bar)
+        # self.k_d self.k_theta
+        omega = self.k_d * (0.22/self.v_bar) * self.cross_track_err + self.k_theta * (0.22/self.v_bar) * self.heading_err
+        omega += backward*(omega_feedforward)
+
+
+
 
         # check if nominal omega satisfies min radius, otherwise constrain it to minimal radius
         if math.fabs(omega) > car_control_msg.v / self.min_radius:
@@ -479,28 +526,24 @@ class lane_controller(object):
 
         if car_control_msg.v == 0:
             omega = 0
-        elif car_control_msg.v - 0.5 * math.fabs(omega) * 0.1 < 0.065:
-            # check if velocity is large enough such that car can actually execute desired omega
-            car_control_msg.v = 0.065 + 0.5 * math.fabs(omega) * 0.1
+        else:
+        # check if velocity is large enough such that car can actually execute desired omega
+            if car_control_msg.v - 0.5 * math.fabs(omega) * 0.1 < 0.065:
+                car_control_msg.v = 0.065 + 0.5 * math.fabs(omega) * 0.1
+
+
+
 
         # apply magic conversion factors
-        car_control_msg.v = car_control_msg.v * self.velocity_to_m_per_s
+
+        #probably we need a minus sign here
+        car_control_msg.v = backward*car_control_msg.v * self.velocity_to_m_per_s
         omega = omega * self.omega_to_rad_per_s
 
-        omega = min(self.omega_max, max(self.omega_min, omega))
-        omega += self.omega_ff
+        if omega > self.omega_max: omega = self.omega_max
+        if omega < self.omega_min: omega = self.omega_min
+        omega += backward*self.omega_ff
         car_control_msg.omega = omega
-
-        if self.turn_direction == 'straight':
-            car_control_msg.omega = 0.0
-            car_control_msg.v = 0.23
-        elif self.turn_direction == 'right':
-            car_control_msg.omega = -2.5
-            car_control_msg.v = 0.23
-        elif self.turn_direction == 'left':
-            # NOTE: Not tested, should probably be less (~1.5) since wider turn
-            car_control_msg.omega = 3.0
-            car_control_msg.v = 0.23
 
         self.publishCmd(car_control_msg)
         self.last_ms = currentMillis
