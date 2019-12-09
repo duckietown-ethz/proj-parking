@@ -123,7 +123,7 @@ class lane_controller(object):
     def setupParameter(self, param_name, default_value):
         value = rospy.get_param(param_name, default_value)
         rospy.set_param(param_name, value)
-        rospy.logdebug("[%s] %s = %s " %(self.node_name, param_name, value))
+        rospy.logdebug("[%s] %s = %s " % (self.node_name, param_name, value))
         return value
 
 
@@ -134,6 +134,7 @@ class lane_controller(object):
         self.should_reverse = False
         self.stop_line_distance = 999
         self.stop_line_detected = False
+        self.past_time = 0
         self.setGains()
 
 
@@ -404,6 +405,19 @@ class lane_controller(object):
 
 
     def updatePose(self, pose_msg):
+        if self.should_reverse:
+            backward = -1
+            self.k_d = 3.0
+            self.k_theta = 1
+            self.k_Id = -1
+            self.k_Iphi = -1
+        else:
+            backward = 1
+            self.k_d = -3.5
+            self.k_theta = -1
+            self.k_Id = 1
+            self.k_Iphi = 0
+
         self.lane_reading = pose_msg
 
         # Calculating the delay image processing took
@@ -417,7 +431,7 @@ class lane_controller(object):
         prev_heading_err = self.heading_err
 
         self.cross_track_err = pose_msg.d - self.d_offset
-        self.heading_err = pose_msg.phi
+        self.heading_err = backward * pose_msg.phi
 
         car_control_msg = Twist2DStamped()
         car_control_msg.header = pose_msg.header
@@ -428,8 +442,8 @@ class lane_controller(object):
             car_control_msg.v = self.actuator_limits.v
 
         if math.fabs(self.cross_track_err) > self.d_thres:
-            rospy.logerr("cross_track_err > d_thres")
-            self.cross_track_err = self.cross_track_err / math.fabs(self.cross_track_err) * self.d_thres
+            rospy.logerr("Inside threshold")
+            self.cross_track_err = np.sign(self.cross_track_err) * self.d_thres
 
         currentMillis = int(round(time.time() * 1000))
 
@@ -467,7 +481,7 @@ class lane_controller(object):
         # Scale the parameters linear such that their real value is at 0.22m/s
         omega = self.k_d * (0.22/self.v_bar) * self.cross_track_err + \
             self.k_theta * (0.22/self.v_bar) * self.heading_err
-        omega += omega_feedforward
+        omega += backward * omega_feedforward
 
         # check if nominal omega satisfies min radius, otherwise constrain it to minimal radius
         if math.fabs(omega) > car_control_msg.v / self.min_radius:
@@ -488,18 +502,13 @@ class lane_controller(object):
             car_control_msg.v = 0.065 + 0.5 * math.fabs(omega) * 0.1
 
         # apply magic conversion factors
-        car_control_msg.v = car_control_msg.v * self.velocity_to_m_per_s
+        car_control_msg.v = backward * car_control_msg.v * self.velocity_to_m_per_s
         omega = omega * self.omega_to_rad_per_s
 
-        omega = min(self.omega_max, max(self.omega_min, omega))
-        omega += self.omega_ff
+        if omega > self.omega_max: omega = self.omega_max
+        if omega < self.omega_min: omega = self.omega_min
+        omega += backward * self.omega_ff
         car_control_msg.omega = omega
-
-        if self.should_reverse:
-            # Open loop
-            car_control_msg.omega = -2.5
-            # Closed Loop
-            car_control_msg.v = -car_control_msg.v
 
         self.publishCmd(car_control_msg)
         self.last_ms = currentMillis
