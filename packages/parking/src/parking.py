@@ -232,7 +232,6 @@ class ParkingNode(DTROS):
 
         elif next_state == EXITING_PARKING_LOT:
             rospy.loginfo('[%s] EXITING_PARKING_LOT' % self.node_name)
-            self.toggleReversal(reverse=False) # Stop backwards wheel cmd
             self.pauseOperations(2) # Pause for a few seconds
             self.startNormalLaneFollowing() # Resume normal lane following
             self.pauseOperations(2) # Pause for a few more seconds
@@ -292,11 +291,11 @@ class ParkingNode(DTROS):
 
 
     def startNormalLaneFollowing(self, restart=True):
+        self.toggleReversal(reverse=False) # No more reverse control
         self.setLEDs('white') # Set LEDs to white (normal operation)
         self.updateDoffset(0) # d_offset=0 for normal lane following
         self.updateTopCutoff() # Default top cutoff for normal lane following
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
-        self.toggleReversal(reverse=False) # No more reverse control
         self.turn('none') # No special turning maneuvers
         if restart:
             self.restartLaneFollowing() # Switch FSM off and on again
