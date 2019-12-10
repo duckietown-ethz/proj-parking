@@ -6,5 +6,6 @@
     <node pkg="parking" type="free_parking_detection.py" name="parking_free" output="screen"/>
     <node pkg="parking" type="white_line_detection.py" name="white_line_detector" output="screen"/>
     <node pkg="parking" type="red_line_detection.py" name="red_line_detector" output="screen"/>
+    <node pkg="parking" type="pink_led_detection.py" name="pink_led_detector" output="screen"/>
   </group>
 </launch>

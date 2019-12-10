@@ -6,7 +6,7 @@ import numpy as np
 import rospy
 from duckietown_msgs.msg import Twist2DStamped, LanePose, WheelsCmdStamped, BoolStamped, FSMState, StopLineReading
 import time
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, String
 import numpy as np
 
 class lane_controller(object):
@@ -94,6 +94,12 @@ class lane_controller(object):
             self.cbReverse,
             queue_size=1
         )
+        self.turn_direction_sub = rospy.Subscriber(
+            '/%s/parking/turn_direction' % self.veh,
+            String,
+            self.cbTurnDirection,
+            queue_size=1
+        )
 
         # FSM
         self.sub_switch = rospy.Subscriber(
@@ -134,7 +140,10 @@ class lane_controller(object):
         self.should_reverse = False
         self.stop_line_distance = 999
         self.stop_line_detected = False
+        self.reverse_var = False
         self.past_time = 0
+        self.turn_direction = None
+        self.reverse_var = False
         self.setGains()
 
 
@@ -299,9 +308,22 @@ class lane_controller(object):
         self.stop_line_detected = msg.stop_line_detected
 
 
+    def cbTurnDirection(self, msg):
+        direction = msg.data.lower()
+        if direction not in ['straight', 'right', 'left', 'none']:
+            return
+        if direction == 'none':
+            self.turn_direction = None
+        else:
+            self.turn_direction = direction
+        tup = (self.node_name, str(self.turn_direction))
+        rospy.loginfo('[%s] Set turn direction to %s' % tup)
+
+
     def cbReverse(self, msg):
+        rospy.loginfo("[%s] Reverse "% self.node_name)
         should_reverse = msg.data
-        self.should_reverse = should_reverse
+        self.reverse_var = should_reverse
 
 
     def cbSwitch(self, fsm_switch_msg):
@@ -405,10 +427,12 @@ class lane_controller(object):
 
 
     def updatePose(self, pose_msg):
-        if self.should_reverse:
+        if self.reverse_var:
+            #rospy.loginfo("BACKWARD")
+
             backward = -1
-            self.k_d = 3.0
-            self.k_theta = 1
+            self.k_d = 3#3.0
+            self.k_theta = 1#1
             self.k_Id = -1
             self.k_Iphi = -1
         else:
@@ -417,6 +441,10 @@ class lane_controller(object):
             self.k_theta = -1
             self.k_Id = 1
             self.k_Iphi = 0
+            # Open loop
+            #car_control_msg.omega = -2.0
+            # Closed Loop
+            #car_control_msg.v = -car_control_msg.v
 
         self.lane_reading = pose_msg
 
@@ -509,6 +537,17 @@ class lane_controller(object):
         if omega < self.omega_min: omega = self.omega_min
         omega += backward * self.omega_ff
         car_control_msg.omega = omega
+
+        if self.turn_direction == 'straight':
+            car_control_msg.omega = 0.0
+            car_control_msg.v = 0.23
+        elif self.turn_direction == 'right':
+            car_control_msg.omega = -2.5
+            car_control_msg.v = 0.23
+        elif self.turn_direction == 'left':
+            # NOTE: Not tested, should probably be less (~1.5) since wider turn
+            car_control_msg.omega = -3
+            car_control_msg.v = -0.15
 
         self.publishCmd(car_control_msg)
         self.last_ms = currentMillis

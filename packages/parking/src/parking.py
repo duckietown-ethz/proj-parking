@@ -48,7 +48,7 @@ class ParkingNode(DTROS):
 
         self.veh_name = rospy.get_namespace().strip("/")
         self.node_name = rospy.get_name()
-        self.state = SEARCHING
+        self.state = ENTERING_PARKING_LOT
 
         # Services
         self.set_led_pattern = rospy.ServiceProxy(
@@ -70,6 +70,17 @@ class ParkingNode(DTROS):
         self.pause_lane_control_pub = rospy.Publisher(
             'lane_controller_node/pause',
             Float64,
+            queue_size=1
+        )
+        self.turn_direction_pub = rospy.Publisher(
+            '~/%s/parking/turn_direction' % self.veh_name,
+            String,
+            queue_size=1
+        )
+
+        self.back_exit_pub = rospy.Publisher(
+            '~/%s/parking/back_exit' % self.veh_name,
+            BoolStamped,
             queue_size=1
         )
         self.reverse_pub = rospy.Publisher(
@@ -96,6 +107,21 @@ class ParkingNode(DTROS):
             self.cbStopParking,
             queue_size=1
         )
+        self.red_line_sub = rospy.Subscriber(
+            '/%s/red_line' % self.veh_name,
+            BoolStamped,
+            self.cbRedLine,
+            queue_size=1
+        )
+        # start again without rerunning
+
+        self.restart_sub = rospy.Subscriber(
+            '/%s/parking/start_from' % self.veh_name,
+            BoolStamped,
+            self.cdRestart,
+            queue_size=1
+        )
+
 
         rospy.loginfo('[%s] Initialized' % self.node_name)
 
@@ -104,6 +130,10 @@ class ParkingNode(DTROS):
     ######### CALLBACKS #########
     #############################
     """
+
+    def cdRestart(self,msg):
+        if msg.data:
+            self.state = SEARCHING
 
     def cbParkingSpotDetected(self, msg):
         # We only care about finding a free spot if we're searching or exiting
@@ -118,6 +148,9 @@ class ParkingNode(DTROS):
             rospy.loginfo('[%s] Found a free parking spot!' % self.node_name)
         elif self.state == EXITING_PARKING_SPOT:
             rospy.loginfo('[%s] Exited parking spot!' % self.node_name)
+            self.publish_exit(False)#one of those not needed
+            self.updateLaneController(reverse=False)
+            self.pauseOperations(2)
 
         self.transitionToNextState()
 
@@ -131,6 +164,25 @@ class ParkingNode(DTROS):
         if should_stop_parking:
             rospy.loginfo('[%s] Stop parking maneuver!' % self.node_name)
             self.transitionToNextState()
+
+
+    def cbRedLine(self, msg):
+            # We only care about turning at a red line if we're in certain states
+            if self.state in [INACTIVE, IS_PARKED, IS_PARKING, EXITING_PARKING_SPOT]:
+                return
+
+            at_intersection = msg.data == True
+            if at_intersection:
+                rospy.loginfo('[%s] Detected intersection!' % self.node_name)
+                self.pauseOperations(2)
+
+                if self.state == ENTERING_PARKING_LOT:
+                    self.turn('right') # Turn right to enter parking area
+                    self.transitionToNextState() # Begin searching
+                elif self.state == SEARCHING:
+                    self.turn('straight',2.0)
+                elif self.state == EXITING_PARKING_LOT:
+                    self.turn('right')
 
 
     """
@@ -149,6 +201,7 @@ class ParkingNode(DTROS):
             self.startNormalLaneFollowing()
 
         elif next_state == IS_PARKING:
+            #self.updateGain(0.8) #updates the gain if needed
             self.updateTopCutoff(80) # Cut out blue lines from other parking spots
             self.updateLaneFilterColor('blue') # Follow blue lane, not yellow
             self.updateDoffset(0.18) # Follow the left of the blue lane
@@ -156,19 +209,31 @@ class ParkingNode(DTROS):
             self.pauseOperations(2) # Pause for 2 sec before continuing
 
         elif next_state == IS_PARKED:
+            rospy.loginfo('[%s] IS_PARKED' % (self.node_name))
             self.setLEDs('off') # Turn off LEDs while parked
             self.pauseOperations(5) # Stay in the parking spot a certain time
             self.transitionToNextState() # Start exiting the parking spot
 
         elif next_state == EXITING_PARKING_SPOT:
+            rospy.loginfo('[%s] EXITING_PARKING_SPOT' % (self.node_name))
             self.setLEDs('red') # Set LEDs to red to indicate leaving parking
             self.pauseOperations(3) # Allow time for others to detect LEDs
             self.startBackwardsLaneFollowing()
 
         elif next_state == EXITING_PARKING_LOT:
+            self.turn('left',1)
+            # self.pauseOperations(2)
+            rospy.loginfo('[%s] EXITING_PARKING_LOT' % (self.node_name))
             self.pauseOperations(2)
             self.startNormalLaneFollowing()
+            self.pauseOperations(2)
 
+
+    def publish_exit(self,value):
+        msg = BoolStamped()
+        msg.header.stamp = rospy.Time.now()
+        msg.data = value
+        self.back_exit_pub.publish(msg)
 
     def pauseOperations(self, num_sec):
         tup = (self.node_name, num_sec)
@@ -191,6 +256,14 @@ class ParkingNode(DTROS):
         rospy.set_param(param_name, cutoff)
 
 
+    def updateGain(self, gain=0.8):
+        # Cutoff (don't examine) the top section of the image for line detector
+        gain_update = (self.node_name, gain)
+        rospy.loginfo('[%s] Setting kinematic control gain=%d' % gain_update)
+        param_name = '/%s/kinematics_node/gain' % self.veh_name
+        rospy.set_param(param_name, gain)
+
+
     def updateLaneFilterColor(self, desired_color):
         # desired_color should be one of 'yellow', 'green', 'blue'
         tup = (self.node_name, desired_color)
@@ -208,7 +281,11 @@ class ParkingNode(DTROS):
     def startBackwardsLaneFollowing(self):
         self.updateTopCutoff(50)
         self.updateDoffset(0.118)
+        self.setLEDs('red') # Set LEDs to red to indicate leaving parking
+        self.updateLaneFilterColor('blue')
+        self.publish_exit(True)#one of those not needed
         self.updateLaneController(reverse=True)
+        self.turn('none') # No special maneuvers
 
 
     def startNormalLaneFollowing(self, restart=True):
@@ -217,6 +294,8 @@ class ParkingNode(DTROS):
         self.updateTopCutoff() # Default top cutoff for normal lane following
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
         self.updateLaneController(reverse=False) # No more reverse control
+        self.publish_exit(False)#ONE OF THOSE NOT NEEDED
+        self.turn('none') # No special maneuvers
         if restart:
             self.restartLaneFollowing()
 
@@ -229,6 +308,31 @@ class ParkingNode(DTROS):
         rospy.sleep(1) # Allow time for FSM state transition
         override.data = False # Deactivate joystick --> activate lane following
         self.joystick_control_pub.publish(override)
+
+
+    def turn(self, direction, duration=1.5):
+        if direction not in ['straight', 'right', 'left', 'none']:
+            tup = (self.node_name, direction)
+            rospy.logerr('[%s] Invalid direction: %s' % tup)
+            return
+
+        def _deactivate(e):
+            no_turn = String()
+            no_turn.data = 'none'
+            self.turn_direction_pub.publish(no_turn)
+            tup = (self.node_name, direction)
+            rospy.loginfo('[%s] Finished turning %s' % tup)
+
+        if direction == 'none':
+            _deactivate(None)
+            return
+
+        rospy.loginfo('[%s] Turning %s' % (self.node_name, direction))
+        activate_turn = String()
+        activate_turn.data = direction
+        self.turn_direction_pub.publish(activate_turn)
+        rospy.sleep(duration)
+        _deactivate(None)
 
 
     def setLEDs(self, pattern):
