@@ -113,6 +113,12 @@ class ParkingNode(DTROS):
             self.cbRedLine,
             queue_size=1
         )
+        self.pink_led_sub = rospy.Subscriber(
+            '/%s/parking/pink_line' % self.veh_name,
+            BoolStamped,
+            self.cbPinkLed,
+            queue_size=1
+        )
         # start again without rerunning
 
         self.restart_sub = rospy.Subscriber(
@@ -183,6 +189,18 @@ class ParkingNode(DTROS):
                     self.turn('straight',2.0)
                 elif self.state == EXITING_PARKING_LOT:
                     self.turn('right')
+
+
+    def cbPinkLed(self, msg):
+            # We only care about turning at a red line if we're in certain states
+            if self.state in [IS_PARKED, IS_PARKING, EXITING_PARKING_SPOT]:
+                return
+
+            pink_Led = msg.data == True
+            if pink_Led:
+                rospy.loginfo('[%s] Detected Duckiebot with Leds Pink!' % self.node_name)
+                self.pauseOperations(10) #Pause for 10 sec
+
 
 
     """
