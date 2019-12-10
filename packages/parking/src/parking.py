@@ -107,12 +107,12 @@ class ParkingNode(DTROS):
 
         # start again without rerunning
 
-        """self.red_line_sub = rospy.Subscriber(
+        self.red_line_sub = rospy.Subscriber(
             '/%s/parking/start_from' % self.veh_name,
             BoolStamped,
             self.cdRestart,
             queue_size=1
-        )"""
+        )
 
         #self.pauseOperations(5)
         #self.transitionToNextState()
@@ -124,9 +124,10 @@ class ParkingNode(DTROS):
     #############################
     """
 
-    """def cdRestart(self,msg):
-        self.state = SEARCHING
-    """
+    def cdRestart(self,msg):
+        if msg.data:
+            self.state = SEARCHING
+    
     def cbParkingFree(self, msg):
 
         found_free_parking_spot = msg.data == True
@@ -136,6 +137,8 @@ class ParkingNode(DTROS):
                 rospy.loginfo('[%s] Exited parking spot!' % self.node_name)
                 self.pauseOperations(2)
                 self.turn('left')
+                rospy.loginfo('[%s] Starting normal lane controller!' % self.node_name)
+                self.pauseOperations(2)
                 self.transitionToNextState()
 
         if self.state != SEARCHING:
