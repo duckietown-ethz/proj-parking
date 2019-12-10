@@ -5,21 +5,17 @@ import os
 import numpy as np
 
 from cv_bridge import CvBridge, CvBridgeError
-from sensor_msgs.msg import CompressedImage, Image
+from sensor_msgs.msg import CompressedImage
 from duckietown_msgs.msg import BoolStamped
 from duckietown import DTROS
 
 WIDTH = 320
 HEIGHT = 240
 
+
 class PinkLedDetectorNode(DTROS):
     """
-        This node looks in the bottom of the image for
-        the color pink and publishes a Boolean value
-        if it detects an amount of pink above a certain threshold.
-        ----------
-        It is used by parking as a trigger that the Duckiebot
-        can stop the parking maneuver when it approaches a pink line.
+        This node detects pink LEDs of other Duckiebots.
     """
 
     def __init__(self, node_name):
@@ -36,7 +32,7 @@ class PinkLedDetectorNode(DTROS):
 
         # Publishers
         self.pink_pub = rospy.Publisher(
-            '~/%s/parking/pink_line' % self.veh,
+            '~/%s/parking/pink_leds' % self.veh,
             BoolStamped,
             queue_size=1
         )
@@ -53,15 +49,10 @@ class PinkLedDetectorNode(DTROS):
         self.hsv_pink1 = np.array([150, 150, 100])
         self.hsv_pink2 = np.array([160, 255, 255])
         self.dilation_kernel_size = 3
-        self.edges = np.empty(0)
-
-
-    def croppedImage(self, full_image):
-        return full_image[HEIGHT-3:, :WIDTH//2]
 
 
     def detectColor(self, data):
-        img = self.croppedImage(self.readImage(data))
+        img = self.readImage(data)
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         # Detect pink

@@ -53,7 +53,6 @@ class WhiteLineDetectorNode(DTROS):
         self.hsv_white1 = np.array([0, 0, 150])
         self.hsv_white2 = np.array([180, 100, 255])
         self.dilation_kernel_size = 3
-        self.edges = np.empty(0)
 
 
     def croppedImage(self, full_image):

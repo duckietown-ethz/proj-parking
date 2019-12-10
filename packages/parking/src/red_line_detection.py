@@ -51,7 +51,6 @@ class RedLine(DTROS):
         self.hsv_red3 = np.array([165, 140, 100])
         self.hsv_red4 = np.array([180, 255, 255])
         self.dilation_kernel_size = 3
-        self.edges = np.empty(0)
 
 
     def bottomOfImage(self, full_image):

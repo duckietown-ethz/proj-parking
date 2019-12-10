@@ -88,13 +88,13 @@ class lane_controller(object):
             self.cbPauseOperations,
             queue_size=1
         )
-        self.reverse_sub = rospy.Subscriber(
+        self.sub_reverse = rospy.Subscriber(
             '/%s/parking/reverse' % self.veh,
             BoolStamped,
             self.cbReverse,
             queue_size=1
         )
-        self.turn_direction_sub = rospy.Subscriber(
+        self.sub_turn_direction = rospy.Subscriber(
             '/%s/parking/turn_direction' % self.veh,
             String,
             self.cbTurnDirection,
@@ -140,10 +140,8 @@ class lane_controller(object):
         self.should_reverse = False
         self.stop_line_distance = 999
         self.stop_line_detected = False
-        self.reverse_var = False
         self.past_time = 0
         self.turn_direction = None
-        self.reverse_var = False
         self.setGains()
 
 
@@ -320,10 +318,11 @@ class lane_controller(object):
         rospy.loginfo('[%s] Set turn direction to %s' % tup)
 
 
-    def cbReverse(self, msg):
-        rospy.loginfo("[%s] Reverse "% self.node_name)
+    def cbReverse(self, msg):        
         should_reverse = msg.data
-        self.reverse_var = should_reverse
+        tup = (self.node_name, should_reverse)
+        rospy.loginfo('[%s] Reverse = %s' % tup)
+        self.should_reverse = should_reverse
 
 
     def cbSwitch(self, fsm_switch_msg):
@@ -427,12 +426,10 @@ class lane_controller(object):
 
 
     def updatePose(self, pose_msg):
-        if self.reverse_var:
-            #rospy.loginfo("BACKWARD")
-
+        if self.should_reverse:
             backward = -1
-            self.k_d = 3#3.0
-            self.k_theta = 1#1
+            self.k_d = 3
+            self.k_theta = 1
             self.k_Id = -1
             self.k_Iphi = -1
         else:
@@ -441,10 +438,6 @@ class lane_controller(object):
             self.k_theta = -1
             self.k_Id = 1
             self.k_Iphi = 0
-            # Open loop
-            #car_control_msg.omega = -2.0
-            # Closed Loop
-            #car_control_msg.v = -car_control_msg.v
 
         self.lane_reading = pose_msg
 
