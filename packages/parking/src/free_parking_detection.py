@@ -30,7 +30,7 @@ class FreeParking(DTROS):
         rospy.set_param('/%s/camera_node/res_h' % self.veh, HEIGHT)
         rospy.set_param('/%s/camera_node/exposure_mode' % self.veh, 'off')
 
-        self.reverse_var = False
+        self.is_reversing = False
 
         self.updateParameters()
 
@@ -47,7 +47,6 @@ class FreeParking(DTROS):
             CompressedImage,
             self.detectColor
         )
-
         self.reverse_sub = rospy.Subscriber(
             '/%s/parking/reverse' % self.veh,
             BoolStamped,
@@ -66,23 +65,22 @@ class FreeParking(DTROS):
         self.edges = np.empty(0)
 
 
-    def cbReverse(self, msg):
-        rospy.loginfo("[%s] Reverse "% self.node_name)
-        should_reverse = msg.data
-        self.reverse_var = should_reverse
+    def cbReverse(self, msg):        
+        is_reversing = msg.data
+        tup = (self.node_name, is_reversing)
+        rospy.loginfo('[%s] Reverse = %s' % tup)
+        self.is_reversing = is_reversing
 
 
-    def lowerLeftImage(self, full_image):
-        if self.reverse_var:
+    def croppedImage(self, full_image):
+        if self.is_reversing:
             return full_image[160:, :]
-            
-        return full_image[160:, :120]
+        else:
+            return full_image[160:, :120]
 
 
     def detectColor(self, data):
-        cv_img = self.readImage(data)
-
-        img = self.lowerLeftImage(cv_img)
+        img = self.croppedImage(self.readImage(data))
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         # Detect the color
@@ -90,7 +88,7 @@ class FreeParking(DTROS):
         upper_bound = self.hsv_green2 if self.detect_green else self.hsv_blue2
         bw = cv2.inRange(hsv, lower_bound, upper_bound)
 
-        # binary dilation
+        # Binary dilation
         kernel_size = (self.dilation_kernel_size, self.dilation_kernel_size)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, kernel_size)
         bw = cv2.dilate(bw, kernel)
@@ -120,6 +118,6 @@ class FreeParking(DTROS):
 
 if __name__ == '__main__':
     # Initialize the node
-    camera_node = FreeParking(node_name='parking_free')
+    free_parking_node = FreeParking(node_name='parking_free')
     # Keep it spinning to keep the node alive
     rospy.spin()
