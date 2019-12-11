@@ -107,10 +107,10 @@ class ParkingNode(DTROS):
             self.cbRedLine,
             queue_size=1
         )
-        self.pink_led_sub = rospy.Subscriber(
-            '/%s/parking/pink_leds' % self.veh_name,
+        self.red_led_sub = rospy.Subscriber(
+            '/%s/parking/red_led' % self.veh_name,
             BoolStamped,
-            self.cbPinkLEDDetection,
+            self.cbRedLED,
             queue_size=1
         )
 
@@ -184,14 +184,14 @@ class ParkingNode(DTROS):
                 self.turn('right') # Turn right to exit the parking lot
 
 
-    def cbPinkLEDDetection(self, msg):
-        # We only stop for pink LEDs in certain states
+    def cbRedLED(self, msg):
+        # We only stop for LED detection in certain states
         if self.state not in [SEARCHING, ENTERING_PARKING_LOT, EXITING_PARKING_LOT]:
             return
 
-        sees_pink_leds = (msg.data == True)
-        if sees_pink_leds:
-            rospy.loginfo('[%s] Detected Duckiebot with pink LEDs!' % self.node_name)
+        sees_leds = (msg.data == True)
+        if sees_leds:
+            rospy.loginfo('[%s] Detected Duckiebot with red LEDs!' % self.node_name)
             self.pauseOperations(10) # Pause for some time till danger is gone
 
     """

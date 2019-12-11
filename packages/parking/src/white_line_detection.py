@@ -56,7 +56,7 @@ class WhiteLineDetectorNode(DTROS):
 
 
     def croppedImage(self, full_image):
-        return full_image[HEIGHT-4:, :WIDTH//2]
+        return full_image[HEIGHT-4:, :WIDTH//2+50]
 
 
     def detectColor(self, data):

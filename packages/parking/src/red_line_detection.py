@@ -53,12 +53,12 @@ class RedLine(DTROS):
         self.dilation_kernel_size = 3
 
 
-    def bottomOfImage(self, full_image):
-        return full_image[HEIGHT-5:, :]
+    def croppedImage(self, full_image):
+        return full_image[HEIGHT-5:, WIDTH//2-50:WIDTH//2+50]
 
 
     def detectColor(self,data):
-        img = self.bottomOfImage(self.readImage(data))
+        img = self.croppedImage(self.readImage(data))
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         # detect red
