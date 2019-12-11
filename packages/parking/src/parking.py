@@ -5,8 +5,8 @@ import rospy
 import time
 from duckietown import DTROS
 from std_msgs.msg import String, Float64
-from duckietown_msgs.msg import BoolStamped
-from duckietown_msgs.srv import ChangePattern
+from duckietown_msgs.msg import BoolStamped, LEDPattern
+from duckietown_msgs.srv import ChangePattern, SetCustomLEDPattern
 
 
 """
@@ -51,9 +51,9 @@ class ParkingNode(DTROS):
         self.state = ENTERING_PARKING_LOT
 
         # Services
-        self.set_led_pattern = rospy.ServiceProxy(
-            '/%s/led_emitter_node/set_pattern' % self.veh_name,
-            ChangePattern
+        self.set_custom_led_pattern = rospy.ServiceProxy(
+            '/%s/led_emitter_node/set_custom_pattern' % self.veh_name,
+            SetCustomLEDPattern
         )
 
         # Publishers
@@ -113,7 +113,7 @@ class ParkingNode(DTROS):
             self.cbPinkLEDDetection,
             queue_size=1
         )
-        
+
         # start again without re-running
         self.restart_sub = rospy.Subscriber(
             '/%s/parking/start_from' % self.veh_name,
@@ -134,6 +134,7 @@ class ParkingNode(DTROS):
         if msg.data:
             rospy.loginfo('[%s] Resetting state to SEARCHING' % self.node_name)
             self.state = SEARCHING
+            self.startNormalLaneFollowing()
 
 
     def cbParkingSpotDetected(self, msg):
@@ -220,18 +221,19 @@ class ParkingNode(DTROS):
 
         elif next_state == IS_PARKED:
             rospy.loginfo('[%s] IS_PARKED' % self.node_name)
-            self.setLEDs('off') # Turn off LEDs while parked
+            self.setLEDs('switchedoff') # Turn off LEDs while parked
             self.pauseOperations(5) # Stay in the parking spot a certain time
             self.transitionToNextState() # Start exiting the parking spot
 
         elif next_state == EXITING_PARKING_SPOT:
             rospy.loginfo('[%s] EXITING_PARKING_SPOT' % self.node_name)
-            self.setLEDs('red') # Set LEDs to red to indicate leaving parking
+            self.setLEDs('pink') # Set LEDs to indicate leaving parking
             self.pauseOperations(3) # Allow time for others to detect LEDs
             self.startBackwardsLaneFollowing() # Backwards wheel commands
 
         elif next_state == EXITING_PARKING_LOT:
             rospy.loginfo('[%s] EXITING_PARKING_LOT' % self.node_name)
+            self.turn('left', 1) # Turn left to align with the lane
             self.pauseOperations(2) # Pause for a few seconds
             self.startNormalLaneFollowing() # Resume normal lane following
             self.pauseOperations(2) # Pause for a few more seconds
@@ -338,21 +340,30 @@ class ParkingNode(DTROS):
 
 
     def setLEDs(self, pattern):
-        msg = None
-        if pattern == 'white':
-            msg = 'WHITE'
-        elif pattern == 'red':
-            msg = 'RED'
-        elif pattern == 'off':
-            msg = 'LIGHT_OFF'
-        elif pattern == 'blink':
-            msg = 'CAR_SIGNAL_SACRIFICE_FOR_PRIORITY'
+        if pattern not in ['white', 'red', 'switchedoff', 'blink', 'pink']:
+            tup = (self.node_name, pattern)
+            rospy.logerr('[%s] Invalid LED pattern: %s' % tup)
+            return
 
-        if msg is not None:
-            rospy.loginfo('[%s] Settings LEDs to %s' % (self.node_name, msg))
-            pattern = String()
-            pattern.data = msg
-            self.set_led_pattern(pattern)
+        msg = LEDPattern()
+        if pattern == 'blink':
+            colors = ['white', 'red', 'white', 'red', 'white']
+            color_mask = []
+            frequency_mask = [1, 0, 1, 0, 1]
+            frequency = 1.9
+        else:
+            colors = [pattern] * 5
+            color_mask = [1] * 5
+            frequency_mask = []
+            frequency = 0
+
+        msg.color_list = colors
+        msg.color_mask = color_mask
+        msg.frequency = frequency
+        msg.frequency_mask = frequency_mask
+
+        rospy.loginfo('[%s] Settings LEDs to %s' % (self.node_name, pattern))
+        self.set_custom_led_pattern(msg)
 
 
 if __name__ == '__main__':
