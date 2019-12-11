@@ -31,21 +31,21 @@ class LEDDetectionNode(object):
 
         self.publish_circles = True
 
-		# Subscribers
+        # Subscribers
         self.sub_image = rospy.Subscriber(
-			'~/%s//camera_node/image/compressed' % self.veh,
-			CompressedImage,
-			self.processImage,
-			buff_size=921600,
-			queue_size=1
-		)
+            '~/%s//camera_node/image/compressed' % self.veh,
+            CompressedImage,
+            self.processImage,
+            buff_size=921600,
+            queue_size=1
+        )
 
-		# Publishers
+        # Publishers
         self.pub_circlepattern_image = rospy.Publisher(
-			"~circlepattern_image",
-			Image,
-			queue_size=1
-		)
+            "~circlepattern_image",
+            Image,
+            queue_size=1
+        )
         self.red_pub = rospy.Publisher(
             '~/%s/parking/red_led' % self.veh,
             BoolStamped,
