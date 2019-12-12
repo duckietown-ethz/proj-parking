@@ -94,6 +94,12 @@ class lane_controller(object):
             self.cbReverse,
             queue_size=1
         )
+        self.sub_btw_states = rospy.Subscriber(
+            '/%s/parking/btw_states' % self.veh,
+            BoolStamped,
+            self.cbBtwStates,
+            queue_size=1
+        )
         self.sub_turn_direction = rospy.Subscriber(
             '/%s/parking/turn_direction' % self.veh,
             String,
@@ -142,6 +148,7 @@ class lane_controller(object):
         self.stop_line_detected = False
         self.past_time = 0
         self.turn_direction = None
+        self.wait = False
         self.setGains()
 
 
@@ -318,11 +325,18 @@ class lane_controller(object):
         rospy.loginfo('[%s] Set turn direction to %s' % tup)
 
 
-    def cbReverse(self, msg):        
+    def cbReverse(self, msg):
         should_reverse = msg.data
         tup = (self.node_name, should_reverse)
         rospy.loginfo('[%s] Reverse = %s' % tup)
         self.should_reverse = should_reverse
+
+
+    def cbBtwStates(self, msg):
+        wait = msg.data
+        tup = (self.node_name, wait)
+        rospy.loginfo('[%s] Waiting = %s' % tup)
+        self.wait = wait
 
 
     def cbSwitch(self, fsm_switch_msg):
@@ -531,7 +545,10 @@ class lane_controller(object):
         omega += backward * self.omega_ff
         car_control_msg.omega = omega
 
-        if self.turn_direction == 'straight':
+        if self.wait:
+            car_control_msg.omega = 0.0
+            car_control_msg.v = 0.0
+        elif self.turn_direction == 'straight':
             car_control_msg.omega = 0.0
             car_control_msg.v = 0.23
         elif self.turn_direction == 'right':
