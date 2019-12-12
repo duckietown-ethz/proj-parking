@@ -3,11 +3,6 @@ events:
     topic: "stop_line_filter_node/at_stop_line"
     msg_type: "BoolStamped"
     trigger: True
-  # velocity_zero:
-  #   topic: "lane_controller_node/car_cmd"
-  #   msg_type: "Twist2DStamped"
-  #   field: "v"
-  #   trigger: 0.0
   joystick_override_on:
     topic: "joy_mapper_node/joystick_override"
     msg_type: "BoolStamped"
@@ -45,7 +40,6 @@ events:
     topic: "parking_on"
     msg_type: "BoolStamped"
     trigger: False
-
   joystick_override_off:
     topic: "joy_mapper_node/joystick_override"
     msg_type: "BoolStamped"
@@ -60,26 +54,23 @@ events:
     topic: "joy_mapper_node/deep_learn_toggle"
     msg_type: "BoolStamped"
     trigger: False
-
   charging_exit:
     default: False
     topic: "charging_control_node/ready_at_exit"
     msg_type: "BoolStamped"
     trigger: True
-
-  ###### TO USE OPEN LOOP INTERSECTION CONTROL: (untested)
-  # COMMENT OUT THE FIRST intersection_done, AND UNCOMMENT SECOND intersection_done
   intersection_done:  ## closed loop new
     topic: "intersection_navigation_node/intersection_done"
     msg_type: "BoolStamped"
     trigger: True
-  # intersection_done: ## open loop old
-  #   topic: "open_loop_intersection_control_node/intersection_done"
-  #   msg_type: "BoolStamped"
-  #   trigger: True
-
-# TODO:
-# - parking_on flag?
+  parking_intersection:
+    topic: "intersection_navigation_node/parking_intersection"
+    msg_type: "BoolStamped"
+    trigger: True
+  normal_intersection:
+    topic: "intersection_navigation_node/parking_intersection"
+    msg_type: "BoolStamped"
+    trigger: False
 
 gates:
   at_stop_line_and_parking_off:
@@ -129,14 +120,27 @@ gates:
     inputs:
       - intersection_done
       - deep_lane_following_off
+      - normal_intersection
     output_topic: "~intersection_done_and_deep_lane_off"
   intersection_done_and_deep_lane_on:
     gate_type: "AND"
     inputs:
       - intersection_done
       - deep_lane_following_on
+      - normal_intersection
     output_topic: "~intersection_done_and_deep_lane_on"
-
+  intersection_done_and_parking_off:
+    gate_type: "AND"
+    inputs:
+      - intersection_done
+      - parking_intersection
+      - parking_off
+  intersection_done_and_parking_on:
+    gate_type: "AND"
+    inputs:
+      - intersection_done
+      - parking_intersection
+      - parking_on
   at_stop_line_and_charging_exit:
     gate_type: "AND"
     inputs:

@@ -48,7 +48,7 @@ class ParkingNode(DTROS):
 
         self.veh_name = rospy.get_namespace().strip("/")
         self.node_name = rospy.get_name()
-        self.state = ENTERING_PARKING_LOT
+        self.state = INACTIVE
         self.at_red_line = False
         self.blob_detected = False
 
@@ -100,6 +100,12 @@ class ParkingNode(DTROS):
             queue_size=1
         )
         # Subscribers
+        self.switch_sub = rospy.Subscriber(
+            '~switch',
+            BoolStamped,
+            self.cbSwitch,
+            queue_size=1
+        )
         self.parking_spot_detection_sub = rospy.Subscriber(
             '/%s/parking/free_parking' % self.veh_name,
             BoolStamped,
@@ -138,6 +144,7 @@ class ParkingNode(DTROS):
 
         rospy.loginfo('[%s] Initialized.' % self.node_name)
 
+
     """
     #############################
     ######### CALLBACKS #########
@@ -149,6 +156,17 @@ class ParkingNode(DTROS):
             rospy.loginfo('[%s] Resetting state to SEARCHING' % self.node_name)
             self.state = SEARCHING
             self.startNormalLaneFollowing()
+
+
+    def cbSwitch(self, fsm_switch_msg):
+        was_inactive = (self.state == INACTIVE)
+        becoming_active = fsm_switch_msg.data
+        self.state = INACTIVE
+
+        if was_inactive and becoming_active:
+            self.transitionToNextState() # Transition to ENTERING_PARKING_LOT
+
+        rospy.loginfo('[%s] active: %s' % (self.node_name, becoming_active))
 
 
     def cbParkingSpotDetected(self, msg):
