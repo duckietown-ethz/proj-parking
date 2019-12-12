@@ -41,10 +41,10 @@ class LEDDetectionNode(object):
             buff_size=921600,
             queue_size=1
         )
-        self.at_intersection_sub = rospy.Subscriber(
-            '~/%s/parking/at_intersection' % self.veh_name,
+        self.sub_look_right = rospy.Subscriber(
+            '~/%s/parking/led_detection_right' % self.veh_name,
             BoolStamped,
-            self.cbAtIntersection,
+            self.cbLookRight,
             queue_size=1
         )
 
@@ -72,13 +72,11 @@ class LEDDetectionNode(object):
         self.timeb = rospy.get_rostime().to_sec()
 
 
-
     def bottomOfImage(self, full_image):
         if self.look_right:
             return full_image[HEIGHT//2-40:HEIGHT//2+30, WIDTH//2:WIDTH]
         else:
             return full_image[HEIGHT//2-40:HEIGHT//2+15,:WIDTH//2]
-
 
 
     def setupParam(self, param_name, default_value):
@@ -91,11 +89,12 @@ class LEDDetectionNode(object):
     def cbSwitch(self, switch_msg):
         self.active = switch_msg.data
 
-    def cbAtIntersection(self, msg):
-        at_intersection = msg.data
-        tup = (self.node_name, at_intersection)
-        rospy.loginfo('[%s] at_intersection = %s' % tup)
-        self.look_right = at_intersection
+
+    def cbLookRight(self, msg):
+        look_right = msg.data
+        rospy.loginfo('[%s] look_right = %s' % (self.node_name, look_right))
+        self.look_right = look_right
+
 
     def undistort(self, keypoints):
         #undistort radially

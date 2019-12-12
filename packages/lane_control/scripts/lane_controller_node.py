@@ -94,16 +94,10 @@ class lane_controller(object):
             self.cbReverse,
             queue_size=1
         )
-        self.sub_btw_states = rospy.Subscriber(
-            '/%s/parking/btw_states' % self.veh,
-            BoolStamped,
-            self.cbBtwStates,
-            queue_size=1
-        )
-        self.sub_turn_direction = rospy.Subscriber(
-            '/%s/parking/turn_direction' % self.veh,
+        self.sub_manual_override = rospy.Subscriber(
+            '/%s/parking/lane_control_override' % self.veh,
             String,
-            self.cbTurnDirection,
+            self.cbManualOverride,
             queue_size=1
         )
 
@@ -147,8 +141,7 @@ class lane_controller(object):
         self.stop_line_distance = 999
         self.stop_line_detected = False
         self.past_time = 0
-        self.turn_direction = None
-        self.wait = False
+        self.manual_command = None
         self.setGains()
 
 
@@ -313,16 +306,16 @@ class lane_controller(object):
         self.stop_line_detected = msg.stop_line_detected
 
 
-    def cbTurnDirection(self, msg):
-        direction = msg.data.lower()
-        if direction not in ['straight', 'right', 'left', 'none']:
+    def cbManualOverride(self, msg):
+        command = msg.data.lower()
+        if command not in ['straight', 'right', 'left', 'stop', 'none']:
             return
-        if direction == 'none':
-            self.turn_direction = None
+        if command == 'none':
+            self.manual_command = None
         else:
-            self.turn_direction = direction
-        tup = (self.node_name, str(self.turn_direction))
-        rospy.loginfo('[%s] Set turn direction to %s' % tup)
+            self.manual_command = command
+        tup = (self.node_name, str(self.manual_command))
+        rospy.loginfo('[%s] Set manual command to %s' % tup)
 
 
     def cbReverse(self, msg):
@@ -330,13 +323,6 @@ class lane_controller(object):
         tup = (self.node_name, should_reverse)
         rospy.loginfo('[%s] Reverse = %s' % tup)
         self.should_reverse = should_reverse
-
-
-    def cbBtwStates(self, msg):
-        wait = msg.data
-        tup = (self.node_name, wait)
-        rospy.loginfo('[%s] Waiting = %s' % tup)
-        self.wait = wait
 
 
     def cbSwitch(self, fsm_switch_msg):
@@ -545,17 +531,16 @@ class lane_controller(object):
         omega += backward * self.omega_ff
         car_control_msg.omega = omega
 
-        if self.wait:
+        if self.manual_command == 'stop':
             car_control_msg.omega = 0.0
             car_control_msg.v = 0.0
-        elif self.turn_direction == 'straight':
+        elif self.manual_command == 'straight':
             car_control_msg.omega = 0.0
             car_control_msg.v = 0.23
-        elif self.turn_direction == 'right':
+        elif self.manual_command == 'right':
             car_control_msg.omega = -2.5
             car_control_msg.v = 0.23
-        elif self.turn_direction == 'left':
-            # NOTE: Not tested, should probably be less (~1.5) since wider turn
+        elif self.manual_command == 'left':
             car_control_msg.omega = -3
             car_control_msg.v = -0.15
 
