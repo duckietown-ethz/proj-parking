@@ -227,17 +227,17 @@ states:
     lights: ["lane_following"]
     current_status: "in_progress"
 
-DEEP_LANE_FOLLOWING:
-  transitions:
-    at_stop_line_and_parking_off: "INTERSECTION_COORDINATION"
-    at_stop_line_and_parking_on: "ARRIVE_AT_STOP_LINE"
-    deep_lane_following_off: "LANE_FOLLOWING"
-  active_nodes:
-    - decoder_node
-    - apriltag_node
-    - line_detector_node
-    - stop_line_filter_node
-    - duckiebot_il_lane_following
+  DEEP_LANE_FOLLOWING:
+    transitions:
+      at_stop_line_and_parking_off: "INTERSECTION_COORDINATION"
+      at_stop_line_and_parking_on: "ARRIVE_AT_STOP_LINE"
+      deep_lane_following_off: "LANE_FOLLOWING"
+    active_nodes:
+      - decoder_node
+      - apriltag_node
+      - line_detector_node
+      - stop_line_filter_node
+      - duckiebot_il_lane_following
 
   INTERSECTION_COORDINATION:
     transitions:

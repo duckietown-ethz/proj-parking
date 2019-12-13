@@ -48,7 +48,7 @@ class ParkingNode(DTROS):
 
         self.veh_name = rospy.get_namespace().strip("/")
         self.node_name = rospy.get_name()
-        self.state = INACTIVE
+        self.state = ENTERING_PARKING_LOT
         self.at_red_line = False
         self.blob_detected = False
 
@@ -151,6 +151,8 @@ class ParkingNode(DTROS):
 
 
     def cbSwitch(self, fsm_switch_msg):
+        return
+
         was_inactive = (self.state == INACTIVE)
         becoming_active = fsm_switch_msg.data
 
@@ -296,7 +298,6 @@ class ParkingNode(DTROS):
 
         elif next_state == IS_PARKING:
             self.log('IS_PARKING')
-            # self.updateGain(0.8) # Updates the gain if needed
             self.updateTopCutoff(80) # Cut out blue lines from other parking spots
             self.updateLaneFilterColor('blue') # Follow blue lane, not yellow
             self.updateDoffset(0.18) # Follow the left of the blue lane
@@ -344,7 +345,7 @@ class ParkingNode(DTROS):
         rospy.set_param(param_name, cutoff)
 
 
-    def updateGain(self, gain=0.8):
+    def updateGain(self, gain=0.7):
         # Update the gain of the kinematics package
         self.log('Setting kinematic control gain=%.2f' % gain)
         param_name = '/%s/kinematics_node/gain' % self.veh_name
@@ -388,6 +389,7 @@ class ParkingNode(DTROS):
         self.updateTopCutoff() # Default top cutoff for normal lane following
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
         self.manualLaneControl('none') # No special turning maneuvers
+        self.updateGain(0.7) # Standardized gain
         if restart:
             self.restartLaneFollowing() # Switch FSM off and on again
 

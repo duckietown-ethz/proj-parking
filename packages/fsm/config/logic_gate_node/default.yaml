@@ -135,12 +135,14 @@ gates:
       - intersection_done
       - parking_intersection
       - parking_off
+    output_topic: "~intersection_done_and_parking_off"
   intersection_done_and_parking_on:
     gate_type: "AND"
     inputs:
       - intersection_done
       - parking_intersection
       - parking_on
+    output_topic: "~intersection_done_and_parking_on"
   at_stop_line_and_charging_exit:
     gate_type: "AND"
     inputs:
