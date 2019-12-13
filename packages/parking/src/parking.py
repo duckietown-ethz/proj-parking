@@ -233,7 +233,7 @@ class ParkingNode(DTROS):
                 while self.blob_detected:
                     self.log('At intersection and other duckie detected!')
                     self.setLEDs('switchedoff') # Turn off LEDs while waiting
-                    self.pauseOperations(10) # TODO - blobs cannot be detected while sleeping
+                    self.pauseOperations(10)
                     self.blob_detected = False
                     self.setLEDs('red') # Set LEDs to indicate we are at intersection
                     self.pauseOperations(1)
@@ -254,7 +254,7 @@ class ParkingNode(DTROS):
 
         blob_detected = (msg.data == True)
 
-        if not self.blob_detected:
+        if not blob_detected:
             return
 
         self.blob_detected = blob_detected
