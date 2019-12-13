@@ -6,7 +6,7 @@ import time
 from duckietown import DTROS
 from std_msgs.msg import String, Float64
 from duckietown_msgs.msg import BoolStamped, LEDPattern
-from duckietown_msgs.srv import ChangePattern, SetCustomLEDPattern
+from duckietown_msgs.srv import SetCustomLEDPattern
 
 
 """
@@ -48,7 +48,7 @@ class ParkingNode(DTROS):
 
         self.veh_name = rospy.get_namespace().strip("/")
         self.node_name = rospy.get_name()
-        self.state = ENTERING_PARKING_LOT
+        self.state = INACTIVE#ENTERING_PARKING_LOT
         self.at_red_line = False
         self.blob_detected = False
 
@@ -127,6 +127,22 @@ class ParkingNode(DTROS):
             queue_size=1
         )
 
+        self.a = rospy.Subscriber(
+            '/%s/unicorn_intersection/intersection_done' % self.veh_name,
+            BoolStamped,
+            self.cbIntersection,
+            queue_size=1
+        )
+
+        self.b = rospy.Subscriber(
+            '/%s/navigation/entering_parking_area' % self.veh_name,
+            BoolStamped,
+            self.cbEntering,
+            queue_size=1
+        )
+
+        
+
         # start again without re-running
         self.restart_sub = rospy.Subscriber(
             '/%s/parking/start_from' % self.veh_name,
@@ -137,11 +153,25 @@ class ParkingNode(DTROS):
 
         self.log('Initialized.')
 
+        self.in_sentering_parking_area = False
+
     """
     #############################
     ######### CALLBACKS #########
     #############################
     """
+    def cbEntering(self, msg):
+        if msg.data:
+            rospy.loginfo('[%s] Entering parking area' % self.node_name)
+            self.in_sentering_parking_area=True
+            
+
+    def cbIntersection(self, msg):
+        if msg.data:
+            rospy.loginfo('[%s] Searching for parking spot' % self.node_name)
+            if self.in_sentering_parking_area:
+                self.state=ENTERING_PARKING_LOT
+
 
     def cbRestart(self, msg):
         if msg.data:
