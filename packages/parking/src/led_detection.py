@@ -74,9 +74,9 @@ class LEDDetectionNode(object):
 
     def bottomOfImage(self, full_image):
         if self.look_right:
-            return full_image[HEIGHT//2-40:HEIGHT//2+30, WIDTH//2:WIDTH]
+            return full_image[HEIGHT//2-40:HEIGHT//2+30, WIDTH//2:WIDTH-10]
         else:
-            return full_image[HEIGHT//2-40:HEIGHT//2+15,:WIDTH//2]
+            return full_image[HEIGHT//2-40:HEIGHT//2+15,10:WIDTH//2]
 
 
     def setupParam(self, param_name, default_value):
@@ -168,17 +168,17 @@ class LEDDetectionNode(object):
         params.blobColor = 255
 
         # Filter by Area
-        params.filterByArea = False
-        params.minArea = 10000
+        params.filterByArea = True
+        params.minArea = 10
         params.filterByInertia = False
         params.filterByConvexity = False
         params.filterByCircularity = True
-        params.minCircularity = 0.7
+        params.minCircularity = 0.9
         detector = cv2.SimpleBlobDetector_create(params)
 
         # Detect blobs.
         keypoints = detector.detect(cv_image)
-
+        # print(keypoints)
         # Undistort radially the points
         self.cv_image = cv_image
         keyin = self.features_deepcopy(keypoints)
@@ -195,7 +195,7 @@ class LEDDetectionNode(object):
             pixel1 = cv_image_color[int(keypoints[i].pt[1]), int(keypoints[i].pt[0])]
 
             blue1 = pixel1[0]
-            bluethreshold = 225
+            bluethreshold = 240
             # Check if the blue value of the led light is matching the red back or the white front
             if (blue1 < bluethreshold): # red
                 redfound = 1
