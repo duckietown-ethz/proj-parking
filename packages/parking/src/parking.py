@@ -210,14 +210,15 @@ class ParkingNode(DTROS):
             self.pauseOperations(3)
 
             if self.state == ENTERING_PARKING_LOT:
-                # At intersection; look on the left for red blobs
+                # At intersection; look on the left for Duckiebots going straight
                 self.toggleLEDDetection(led_detection_right=False)
 
                 while self.blob_detected:
-                    self.setLEDs('switchedoff') # Turn off LEDs while waiting
                     self.log('At intersection and other duckie detected!')
-                    self.pauseOperations(10) # TODO - blobs cannot be detected while sleeping
-                    self.setLEDs('red') # Set LEDs to indicate we are at intersection
+                    self.setLEDs('switchedoff') # Turn off LEDs while waiting
+                    self.pauseOperations(10)
+                    self.blob_detected = False
+                    self.setLEDs('red') # Set LEDs to indicate we're at intersection
                     self.pauseOperations(1)
 
                 # At intersection; turn right to enter parking area
@@ -230,9 +231,10 @@ class ParkingNode(DTROS):
                 self.toggleLEDDetection(led_detection_right=True)
 
                 while self.blob_detected:
-                    self.setLEDs('switchedoff') # Turn off LEDs while waiting
                     self.log('At intersection and other duckie detected!')
+                    self.setLEDs('switchedoff') # Turn off LEDs while waiting
                     self.pauseOperations(10) # TODO - blobs cannot be detected while sleeping
+                    self.blob_detected = False
                     self.setLEDs('red') # Set LEDs to indicate we are at intersection
                     self.pauseOperations(1)
 
@@ -250,11 +252,12 @@ class ParkingNode(DTROS):
         if self.state not in [SEARCHING, ENTERING_PARKING_LOT, EXITING_PARKING_LOT]:
             return
 
-        self.blob_detected = (msg.data == True)
+        blob_detected = (msg.data == True)
 
         if not self.blob_detected:
             return
 
+        self.blob_detected = blob_detected
         self.log('Detected Duckiebot with red LEDs!')
 
         if self.at_red_line or self.state == ENTERING_PARKING_LOT:
