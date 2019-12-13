@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
 import rospy
 import numpy
 from duckietown_msgs.msg import FSMState,TagInfo, AprilTagsWithInfos, BoolStamped, TurnIDandType
@@ -11,14 +12,13 @@ class RandomAprilTagTurnsNode(object):
     def __init__(self):
         # Save the name of the node
         self.node_name = rospy.get_name()
+        self.veh = os.environ['VEHICLE_NAME']
         self.turn_type = -1
 
         rospy.loginfo("[%s] Initializing." % (self.node_name))
 
         # Setup publishers
         # self.pub_topic_a = rospy.Publisher("~topic_a",String, queue_size=1)
-
-
         self.pub_turn_type = rospy.Publisher("~turn_type",Int16, queue_size=1, latch=True)
         self.pub_id_and_type = rospy.Publisher("~turn_id_and_type",TurnIDandType, queue_size=1, latch=True)
 
@@ -28,20 +28,20 @@ class RandomAprilTagTurnsNode(object):
         #self.fsm_mode = None #TODO what is this?
         self.sub_topic_tag = rospy.Subscriber("~tag", AprilTagsWithInfos, self.cbTag, queue_size=1)
 
-        self.parking_search = rospy.Subscriber(
-            "~/parking/search_parking_area",
+        self.parking_search_sub = rospy.Subscriber(
+            "/%s/parking_on" % self.veh,
             BoolStamped,
             self.cbParkingSearch,
             queue_size=1
         )
 
-        self.entering_parking_area = rospy.Publisher(
-            "~/parking/entering_parking_area",
+        self.parking_intersection_pub = rospy.Publisher(
+            "/%s/intersection_navigation_node/parking_intersection" % self.veh,
             BoolStamped,
             queue_size=1
         )
 
-        self.searching_parking_area=False
+        self.searching_for_parking = False
         # Read parameters
         self.pub_timestep = self.setupParameter("~pub_timestep", 1.0)
         # Create a timer that calls the cbTimer function every 1.0 second
@@ -52,10 +52,12 @@ class RandomAprilTagTurnsNode(object):
 
         self.rate = rospy.Rate(30)  # 10hz
 
-    def cbParkingSearch(self,msg):
+
+    def cbParkingSearch(self, msg):
         # If this is true it means we are looking for the parking area
         # and so in the case of parking sign we take actions to enter
-        self.searching_parking_area=msg
+        self.searching_for_parking = msg.data
+
 
     def cbMode(self, mode_msg):
         #print mode_msg
@@ -65,12 +67,16 @@ class RandomAprilTagTurnsNode(object):
             self.turn_type = -1
             self.pub_turn_type.publish(self.turn_type)
             #rospy.loginfo("Turn type now: %i" %(self.turn_type))
+
+
     def cbTag(self, tag_msgs):
-
-        if self.fsm_mode == "INTERSECTION_CONTROL" or self.fsm_mode == "INTERSECTION_COORDINATION" or self.fsm_mode == "INTERSECTION_PLANNING":
-
+        valid_modes = [
+            "INTERSECTION_CONTROL",
+            "INTERSECTION_COORDINATION",
+            "INTERSECTION_PLANNING"
+        ]
+        if self.fsm_mode in valid_modes:
             #loop through list of april tags
-
 
             # filter out the nearest apriltag
             dis_min = 999
@@ -90,38 +96,22 @@ class RandomAprilTagTurnsNode(object):
                 availableTurns = []
 
                 signType = taginfo.traffic_sign_type
-                #
-                # If we want to park, this bool is true
-                #
-                if self.searching_parking_area:
-                    rospy.loginfo("Loking for parking area")
 
                 msg = BoolStamped()
                 msg.header.stamp = rospy.Time.now()
                 msg.data = False
 
-                if self.searching_parking_area:
-                    # change the april tag id to find the parking
-                    # 10 turn left
-                    # 63 turn right
-                    # 66 turn straight
+                if self.searching_for_parking:
 
                     if signType == TagInfo.PARKING:
+                        msg.data = True
 
-                        if taginfo.id==66:
-                            availableTurns=[1]
-                            print("FORWARD TO ENTERING THE PARKING AREA")
-                            msg.data = True
-                        elif taginfo.id==63:
-                            availableTurns=[0]
-                            print("LEFT TO ENTERING THE PARKING AREA")
-                            msg.data = True
-                        elif taginfo.id==10:
-                            availableTurns=[2]
-                            print("RIGHT TO ENTERING THE PARKING AREA")
-                            msg.data = True
-                    #if signType == TagInfo.PARKING :
-                    #    rospy.loginfo("[%s] PARKING INFO [%s] [%s]" % (self.node_name,taginfo.id,taginfo.id))
+                        if taginfo.id == 66:
+                            availableTurns = [1] # Forward to enter parking area
+                        elif taginfo.id == 63:
+                            availableTurns = [0] # Left to enter parking area
+                        elif taginfo.id == 10:
+                            availableTurns = [2] # Right to enter parking area
                 else:
                     #go through possible intersection types
                     if(signType == taginfo.NO_RIGHT_TURN or signType == taginfo.LEFT_T_INTERSECT):
@@ -144,8 +134,8 @@ class RandomAprilTagTurnsNode(object):
                     id_and_type_msg.tag_id = taginfo.id
                     id_and_type_msg.turn_type = self.turn_type
 
-                    # PARKING
-                    self.entering_parking_area.publish(msg)
+                    # `True` if parking intersection, `False` otherwise
+                    self.parking_intersection_pub.publish(msg)
 
                     self.pub_id_and_type.publish(id_and_type_msg)
 
