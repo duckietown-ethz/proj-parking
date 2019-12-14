@@ -155,7 +155,10 @@ class ParkingNode(DTROS):
         becoming_active = fsm_switch_msg.data
 
         if was_inactive and becoming_active:
-            self.transitionToNextState() # Transition to ENTERING_PARKING_LOT
+            # Transition to ENTERING_PARKING_LOT after a short delay
+            cb = lambda e: self.transitionToNextState()
+            rospy.Timer(rospy.Duration.from_sec(0.6), cb, oneshot=True)
+            rospy.sleep(0.5)
         elif not becoming_active:
             self.state = INACTIVE
 
