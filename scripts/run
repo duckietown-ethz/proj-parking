@@ -1,5 +1,5 @@
 #!/bin/bash
 
-export BOTNAME=cristina
+export BOTNAME=manipanpan
 
 docker -H "$BOTNAME".local run -it --rm -v /data:/data --privileged --network=host proj-parking:v1

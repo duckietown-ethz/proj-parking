@@ -3,12 +3,12 @@
 import os
 import rospy
 import time
+import random
 
 from duckietown import DTROS
 from std_msgs.msg import String, Float64
 from duckietown_msgs.msg import BoolStamped, LEDPattern
 from duckietown_msgs.srv import SetCustomLEDPattern
-import random
 
 """
 #############################
@@ -52,8 +52,8 @@ class ParkingNode(DTROS):
         self.state = ENTERING_PARKING_LOT
         self.at_red_line = False
         self.blob_detected = False
-        self.timeSlotExiting=20 # time needed to do the maneuver
-        self.timeSlotSearching=5 # time needed to do the maneuver
+        self.timeSlotExiting = 20 # time needed to do the maneuver
+        self.timeSlotSearching = 5 # time needed to do the maneuver
 
         # Services
         self.set_custom_led_pattern = rospy.ServiceProxy(
@@ -153,9 +153,11 @@ class ParkingNode(DTROS):
     ######### CALLBACKS #########
     #############################
     """
+
     def cbLeaveParkingSpot(self,msg):
-        if msg.data and self.state==IS_PARKED:
+        if msg.data and self.state == IS_PARKED:
             self.transitionToNextState()
+
 
     def cbRestart(self, msg):
         if msg.data:
@@ -280,9 +282,7 @@ class ParkingNode(DTROS):
 
         self.log('Detected Duckiebot with red LEDs (no intersection)!')
         self.setLEDs('red') # Set LEDs to indicate we saw a Duckie that wants to exit
-
-        self.waitingForRandomTime()
-
+        self.waitForRandomTime()
         self.pauseOperations(10) # Pause for some time till danger is gone
         self.setLEDs('switchedoff') # Set LEDs off while lane following
 
@@ -324,11 +324,9 @@ class ParkingNode(DTROS):
             self.log('IS_PARKED')
             self.setLEDs('switchedoff') # Turn off LEDs while parked
             self.manualLaneControl('stop')
-            #self.pauseOperations(5) # Stay in the parking spot a certain time
-            #self.transitionToNextState() # Start exiting the parking spot
 
         elif next_state == EXITING_PARKING_SPOT:
-            self.waitingForRandomTime('exiting')
+            self.waitForRandomTime('exiting')
             self.log('EXITING_PARKING_SPOT')
             self.setLEDs('red') # Set LEDs to indicate leaving parking
             self.pauseOperations(3) # Allow time for others to detect LEDs
@@ -344,7 +342,7 @@ class ParkingNode(DTROS):
             self.startNormalLaneFollowing() # Resume normal lane following
             self.pauseOperations(2) # Pause for a few more seconds
     
-    def waitingForRandomTime(self,type='searching'):
+    def waitForRandomTime(self,type='searching'):
         """
         Divide the maneuver time in slots of 20 seconds
         so a duckiebot has to wait a random number of slots before efforting the maneuver
