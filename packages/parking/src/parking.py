@@ -136,10 +136,6 @@ class ParkingNode(DTROS):
         )
 
         self.log('Initialized.')
-        rospy.on_shutdown(self.on_shutdown)
-
-    def on_shutdown(self):
-        self.setLEDs('red')
 
     """
     #############################
@@ -149,9 +145,9 @@ class ParkingNode(DTROS):
 
     def cbRestart(self, msg):
         if msg.data:
-            self.log('Resetting state to SEARCHING')
-            self.state = SEARCHING
-            self.startNormalLaneFollowing()
+            self.log('Resetting state to ENTERING_PARKING_LOT')
+            self.state = INACTIVE
+            self.transitionToNextState()
 
 
     def cbSwitch(self, fsm_switch_msg):
@@ -293,7 +289,8 @@ class ParkingNode(DTROS):
 
         if next_state == ENTERING_PARKING_LOT:
             self.log('ENTERING_PARKING_LOT')
-            rospy.sleep(1.5)
+            self.manualLaneControl('straight', duration=2.0)
+            self.startNormalLaneFollowing()
 
         elif next_state == SEARCHING:
             self.log('SEARCHING')
