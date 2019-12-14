@@ -120,8 +120,6 @@ class VehicleAvoidanceControlNode(object):
 # 		Ki = 0.0
 # 		Kd = 0.00
 		self.theta = vehicle_pose_msg.theta.data
-		# if (vehicle_pose_msg.theta.data <= -0.5) or (vehicle_pose_msg.theta.data >= 0.5):
-		# 	return
 
 		time = rospy.Time.now()
 
@@ -192,9 +190,9 @@ class VehicleAvoidanceControlNode(object):
 		car_cmd_msg_current = Twist2DStamped()
 		car_cmd_msg_current = car_cmd_msg
 		car_cmd_msg_current.header.stamp = rospy.Time.now()
-		if (self.theta <= -0.5) or (self.theta >= 0.5):
+		if abs(self.theta) >= 0.5:
+			# Detected back bumper of parked Duckiebot, do NOT stop
 			self.car_cmd_pub.publish(car_cmd_msg_current)
-			# rospy.loginfo("Detected Backbumper of Parked Duckiebot")
 			return
 		if self.detection:
 			car_cmd_msg_current.v = self.v

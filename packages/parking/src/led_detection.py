@@ -178,7 +178,6 @@ class LEDDetectionNode(object):
 
         # Detect blobs.
         keypoints = detector.detect(cv_image)
-        # print(keypoints)
         # Undistort radially the points
         self.cv_image = cv_image
         keyin = self.features_deepcopy(keypoints)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export BOTNAME=linuslingg
+export BOTNAME=manipanpan
 
 dts duckiebot demo --demo_name all_drivers --duckiebot_name $BOTNAME --package_name duckiebot_interface --image duckietown/dt-duckiebot-interface:daffy
 

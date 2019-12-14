@@ -51,8 +51,6 @@ class ParkingNode(DTROS):
         self.state = ENTERING_PARKING_LOT
         self.at_red_line = False
         self.blob_detected = False
-        self.blob_counter_red = 0
-        self.blob_counter_white = 0
 
         # Services
         self.set_custom_led_pattern = rospy.ServiceProxy(
@@ -206,10 +204,8 @@ class ParkingNode(DTROS):
             self.manualLaneControl('stop') # Stop indefinitely (no timeout)
 
             if self.state == EXITING_PARKING_LOT:
-                self.setLEDs('switchedoff')
                 # Turn right to exit the parking lot
                 self.manualLaneControl('right', duration=1.5)
-                # self.setLEDs('white') # Set LEDs to white (normal operation)
                 return
 
             self.setLEDs('red') # Set LEDs to indicate we are at intersection
@@ -229,7 +225,6 @@ class ParkingNode(DTROS):
 
                 # At intersection; turn right to enter parking area
                 self.manualLaneControl('right', duration=1.5)
-                self.setLEDs('switchedoff')
                 self.transitionToNextState() # Begin searching
 
             elif self.state == SEARCHING:
@@ -247,8 +242,6 @@ class ParkingNode(DTROS):
 
                 # Go straight at the intersection to continue searching
                 self.manualLaneControl('straight', duration=2.0)
-                self.setLEDs('switchedoff')
-                # self.setLEDs('white') # Set LEDs to white (normal operation)
                 # Look on the left for Duckiebots backing out of parking spots
                 self.toggleLEDDetection(led_detection_right=False)
 
@@ -263,29 +256,18 @@ class ParkingNode(DTROS):
         blob_detected = (msg.data == True)
 
         if not blob_detected:
-            self.blob_counter_white = self.blob_counter_white + 1
-            if self.blob_counter_white >= 2:
-                print("white")
-                self.blob_counter_red = 0
-                self.blob_counter_white = 0
             return
 
-        self.blob_counter_red = self.blob_counter_red+1
         self.blob_detected = blob_detected
         self.log('Detected Duckiebot with red LEDs!')
 
         if self.at_red_line or self.state == ENTERING_PARKING_LOT:
             return
 
-        if self.blob_counter_red >= 2:
-            self.blob_counter_white = 0
-            print("red")
-            self.log('Detected Duckiebot with red LEDs (no intersection)!')
-            self.setLEDs('red') # Set LEDs to indicate we saw a Duckie that wants to exit
-            self.pauseOperations(9) # Pause for some time till danger is gone
-            self.setLEDs('switchedoff')
-            self.blob_counter_red = 0
-        # self.setLEDs('white') # Set LEDs to white (normal operation)
+        self.log('Detected Duckiebot with red LEDs (no intersection)!')
+        self.setLEDs('red') # Set LEDs to indicate we saw a Duckie that wants to exit
+        self.pauseOperations(10) # Pause for some time till danger is gone
+        self.setLEDs('switchedoff') # Set LEDs off while lane following
 
     """
     #############################
@@ -324,7 +306,6 @@ class ParkingNode(DTROS):
         elif next_state == IS_PARKED:
             self.log('IS_PARKED')
             self.setLEDs('switchedoff') # Turn off LEDs while parked
-            self.manualLaneControl('stop') # Stop indefinitely (no timeout)
             self.pauseOperations(5) # Stay in the parking spot a certain time
             self.transitionToNextState() # Start exiting the parking spot
 
@@ -402,12 +383,12 @@ class ParkingNode(DTROS):
 
     def startNormalLaneFollowing(self, restart=True):
         self.toggleReversal(reverse=False) # No more reverse control
-        # self.setLEDs('white') # Set LEDs to white (normal operation)
+        self.setLEDs('switchedoff') # Set LEDs off while lane following
         self.updateDoffset(0) # d_offset=0 for normal lane following
         self.updateTopCutoff() # Default top cutoff for normal lane following
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
         self.manualLaneControl('none') # No special turning maneuvers
-        self.updateGain(0.8) # Standardized gain
+        self.updateGain(0.7) # Standardized gain
         if restart:
             self.restartLaneFollowing() # Switch FSM off and on again
 
