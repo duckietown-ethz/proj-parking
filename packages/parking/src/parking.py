@@ -242,7 +242,6 @@ class ParkingNode(DTROS):
 
                 # Go straight at the intersection to continue searching
                 self.manualLaneControl('straight', duration=2.0)
-                self.setLEDs('white') # Set LEDs to white (normal operation)
                 # Look on the left for Duckiebots backing out of parking spots
                 self.toggleLEDDetection(led_detection_right=False)
 
@@ -268,7 +267,7 @@ class ParkingNode(DTROS):
         self.log('Detected Duckiebot with red LEDs (no intersection)!')
         self.setLEDs('red') # Set LEDs to indicate we saw a Duckie that wants to exit
         self.pauseOperations(10) # Pause for some time till danger is gone
-        self.setLEDs('white') # Set LEDs to white (normal operation)
+        self.setLEDs('switchedoff') # Set LEDs off while lane following
 
     """
     #############################
@@ -384,7 +383,7 @@ class ParkingNode(DTROS):
 
     def startNormalLaneFollowing(self, restart=True):
         self.toggleReversal(reverse=False) # No more reverse control
-        self.setLEDs('white') # Set LEDs to white (normal operation)
+        self.setLEDs('switchedoff') # Set LEDs off while lane following
         self.updateDoffset(0) # d_offset=0 for normal lane following
         self.updateTopCutoff() # Default top cutoff for normal lane following
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)

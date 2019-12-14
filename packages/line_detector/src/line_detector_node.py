@@ -173,7 +173,6 @@ class LineDetectorNode(object):
         yellow = self.detector_used.detectLines('yellow')
         red = self.detector_used.detectLines('red')
         #added for parking viciopoli01
-        green = self.detector_used.detectLines('green')
         blue = self.detector_used.detectLines('blue')
 
         tk.completed('detected')
@@ -196,15 +195,12 @@ class LineDetectorNode(object):
             lines_normalized_red = ((red.lines + arr_cutoff) * arr_ratio)
             segmentList.segments.extend(self.toSegmentMsg(lines_normalized_red, red.normals, Segment.RED))
         #added for parking viciopoli01
-        if len(green.lines) > 0:
-            lines_normalized_green = ((green.lines + arr_cutoff) * arr_ratio)
-            segmentList.segments.extend(self.toSegmentMsg(lines_normalized_green, green.normals, 3))
         if len(blue.lines) > 0:
             lines_normalized_blue = ((blue.lines + arr_cutoff) * arr_ratio)
             segmentList.segments.extend(self.toSegmentMsg(lines_normalized_blue, blue.normals, 4))
 
-        self.intermittent_log('# segments: white %3d yellow %3d red %3d green %3d blue %3d' % (len(white.lines),
-                len(yellow.lines), len(red.lines), len(green.lines), len(blue.lines)))
+        self.intermittent_log('# segments: white %3d yellow %3d red %3d blue %3d' % (len(white.lines),
+                len(yellow.lines), len(red.lines), len(blue.lines)))
 
         tk.completed('prepared')
 
@@ -223,7 +219,6 @@ class LineDetectorNode(object):
             drawLines(image_with_lines, white.lines, (0, 0, 0))
             drawLines(image_with_lines, yellow.lines, (255, 0, 0))
             drawLines(image_with_lines, red.lines, (0, 255, 0))
-            drawLines(image_with_lines, green.lines, (0,255,0))
             drawLines(image_with_lines, blue.lines, (0,0,255))
 
             tk.completed('drawn')
@@ -237,7 +232,7 @@ class LineDetectorNode(object):
 
 #         if self.verbose:
 
-            colorSegment = color_segment(white.area, red.area, yellow.area, green.area, blue.area)
+            colorSegment = color_segment(white.area, red.area, yellow.area, blue.area)
             edge_msg_out = self.bridge.cv2_to_imgmsg(self.detector_used.edges, "mono8")
             colorSegment_msg_out = self.bridge.cv2_to_imgmsg(colorSegment, "bgr8")
             self.pub_edge.publish(edge_msg_out)

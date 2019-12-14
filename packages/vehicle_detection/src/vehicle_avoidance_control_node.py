@@ -39,7 +39,7 @@ class VehicleAvoidanceControlNode(object):
 		self.sub_vehicle_pose = rospy.Subscriber("~vehicle_pose", VehiclePose, self.cbPose, queue_size=1)
 		self.sub_car_cmd = rospy.Subscriber("~car_cmd_in", Twist2DStamped, self.cbCarCmd, queue_size=1)
 
-
+		self.theta = 0.0
 # 		self.v_gain = 1
 # 		self.vehicle_pose_msg_temp = VehiclePose()
 # 		#self.vehicle_pose_msg_temp = Pose2DStamped()
@@ -119,6 +119,7 @@ class VehicleAvoidanceControlNode(object):
 # 		Kp_delta_v = 0.8
 # 		Ki = 0.0
 # 		Kd = 0.00
+		self.theta = vehicle_pose_msg.theta.data
 
 		time = rospy.Time.now()
 
@@ -189,6 +190,10 @@ class VehicleAvoidanceControlNode(object):
 		car_cmd_msg_current = Twist2DStamped()
 		car_cmd_msg_current = car_cmd_msg
 		car_cmd_msg_current.header.stamp = rospy.Time.now()
+		if abs(self.theta) >= 0.5:
+			# Detected back bumper of parked Duckiebot, do NOT stop
+			self.car_cmd_pub.publish(car_cmd_msg_current)
+			return
 		if self.detection:
 			car_cmd_msg_current.v = self.v
 			if self.v == 0:
