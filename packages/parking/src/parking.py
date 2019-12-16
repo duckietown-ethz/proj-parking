@@ -151,7 +151,7 @@ class ParkingNode(DTROS):
 
 
     def cbSwitch(self, fsm_switch_msg):
-		return
+        return
 
         was_inactive = (self.state == INACTIVE)
         becoming_active = fsm_switch_msg.data
