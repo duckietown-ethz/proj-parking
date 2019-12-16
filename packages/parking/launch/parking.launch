@@ -1,5 +1,5 @@
 <launch>
-  <include file="$(find parking)/launch/indefinite_navigation.launch"/>
+  <include file="$(find parking)/launch/lane_following.launch"/>
 
   <group ns="$(arg veh)">
     <node pkg="parking" type="parking.py" name="parking_node" output="screen"/>
