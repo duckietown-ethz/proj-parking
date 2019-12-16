@@ -2,7 +2,7 @@
 #v_bar_old 0.45
 v_bar: 0.23
 # k_d_old: -12
-k_d: -3.5
+k_d: -3.0
 # k_theta_old: -6.0
 k_theta: -1
 k_Id: 1
