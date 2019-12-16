@@ -48,7 +48,7 @@ class ParkingNode(DTROS):
 
         self.veh_name = rospy.get_namespace().strip("/")
         self.node_name = rospy.get_name()
-        self.state = INACTIVE
+        self.state = ENTERING_PARKING_LOT
         self.at_red_line = False
         self.blob_detected = False
 
@@ -151,6 +151,8 @@ class ParkingNode(DTROS):
 
 
     def cbSwitch(self, fsm_switch_msg):
+		return
+
         was_inactive = (self.state == INACTIVE)
         becoming_active = fsm_switch_msg.data
 
