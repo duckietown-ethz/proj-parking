@@ -63,9 +63,7 @@ class AprilPostPros(object):
         self.sub_prePros        = rospy.Subscriber("~apriltags_in", AprilTagDetectionArray, self.callback, queue_size=1)
         self.pub_postPros       = rospy.Publisher("~apriltags_out", AprilTagsWithInfos, queue_size=1)
         self.pub_visualize = rospy.Publisher("~tag_pose", PoseStamped, queue_size=1)
-
         # topics for state machine
-        self.pub_postPros_parking = rospy.Publisher("~apriltags_parking", BoolStamped, queue_size=1)
         self.pub_postPros_intersection = rospy.Publisher("~apriltags_intersection", BoolStamped, queue_size=1)
 
         rospy.loginfo("[%s] has started", self.node_name)
@@ -100,15 +98,6 @@ class AprilPostPros(object):
                 new_info.traffic_sign_type = self.traffic_sign_types[id_info['traffic_sign_type']]
 
                 # publish for FSM
-                # parking apriltag event
-                msg_parking = BoolStamped()
-                msg_parking.header.stamp = rospy.Time(0)
-                if new_info.traffic_sign_type == TagInfo.PARKING:
-                    msg_parking.data = True
-                else:
-                    msg_parking.data = False
-                self.pub_postPros_parking.publish(msg_parking)
-
                 # intersection apriltag event
                 msg_intersection = BoolStamped()
                 msg_intersection.header.stamp = rospy.Time(0)

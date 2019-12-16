@@ -32,7 +32,7 @@ class RedLine(DTROS):
 
         # Publishers
         self.red_pub = rospy.Publisher(
-            "~/%s/red_line/" % self.veh,
+            "~/%s/red_line" % self.veh,
             BoolStamped,
             queue_size=1
         )
@@ -57,7 +57,7 @@ class RedLine(DTROS):
         return full_image[HEIGHT-5:, WIDTH//2-50:WIDTH//2+50]
 
 
-    def detectColor(self,data):
+    def detectColor(self, data):
         img = self.croppedImage(self.readImage(data))
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 

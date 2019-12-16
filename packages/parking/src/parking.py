@@ -6,7 +6,7 @@ import time
 from duckietown import DTROS
 from std_msgs.msg import String, Float64
 from duckietown_msgs.msg import BoolStamped, LEDPattern
-from duckietown_msgs.srv import ChangePattern, SetCustomLEDPattern
+from duckietown_msgs.srv import SetCustomLEDPattern
 
 
 """
@@ -48,7 +48,7 @@ class ParkingNode(DTROS):
 
         self.veh_name = rospy.get_namespace().strip("/")
         self.node_name = rospy.get_name()
-        self.state = ENTERING_PARKING_LOT
+        self.state = INACTIVE
         self.at_red_line = False
         self.blob_detected = False
 
@@ -145,19 +145,20 @@ class ParkingNode(DTROS):
 
     def cbRestart(self, msg):
         if msg.data:
-            self.log('Resetting state to SEARCHING')
-            self.state = SEARCHING
-            self.startNormalLaneFollowing()
+            self.log('Resetting state to ENTERING_PARKING_LOT')
+            self.state = INACTIVE
+            self.transitionToNextState() # Transition to ENTERING_PARKING_LOT
 
 
     def cbSwitch(self, fsm_switch_msg):
-        return
-
         was_inactive = (self.state == INACTIVE)
         becoming_active = fsm_switch_msg.data
 
         if was_inactive and becoming_active:
-            self.transitionToNextState() # Transition to ENTERING_PARKING_LOT
+            # Transition to ENTERING_PARKING_LOT after a short delay
+            cb = lambda e: self.transitionToNextState()
+            rospy.Timer(rospy.Duration.from_sec(0.6), cb, oneshot=True)
+            rospy.sleep(0.5)
         elif not becoming_active:
             self.state = INACTIVE
 
@@ -289,7 +290,11 @@ class ParkingNode(DTROS):
             next_state = INACTIVE
         self.state = next_state
 
-        if next_state == SEARCHING:
+        if next_state == ENTERING_PARKING_LOT:
+            self.log('ENTERING_PARKING_LOT')
+            self.startNormalLaneFollowing()
+
+        elif next_state == SEARCHING:
             self.log('SEARCHING')
             # Look on the left for Duckiebots backing out of parking spots
             self.toggleLEDDetection(led_detection_right=False)

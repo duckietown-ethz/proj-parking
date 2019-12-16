@@ -73,18 +73,6 @@ events:
     trigger: False
 
 gates:
-  at_stop_line_and_parking_off:
-    gate_type: "AND"
-    inputs:
-      - at_stop_line
-      - parking_off
-    output_topic: "~at_stop_line_and_parking_off"
-  at_stop_line_and_parking_on:
-    gate_type: "AND"
-    inputs:
-      - at_stop_line
-      - parking_on
-    output_topic: "~at_stop_line_and_parking_on"
   joystick_override_on_and_parallel_autonomy_off:
     gate_type: AND
     inputs:
