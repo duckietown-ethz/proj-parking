@@ -396,7 +396,7 @@ class ParkingNode(DTROS):
         self.updateTopCutoff() # Default top cutoff for normal lane following
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
         self.manualLaneControl('none') # No special turning maneuvers
-        self.updateGain(0.7) # Standardized gain
+        self.updateGain(0.66) # Standardized gain
         if restart:
             self.restartLaneFollowing() # Switch FSM off and on again
 

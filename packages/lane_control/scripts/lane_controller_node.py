@@ -434,7 +434,7 @@ class lane_controller(object):
             self.k_Iphi = -1
         else:
             backward = 1
-            self.k_d = -3.5
+            self.k_d = -3
             self.k_theta = -1
             self.k_Id = 1
             self.k_Iphi = 0
