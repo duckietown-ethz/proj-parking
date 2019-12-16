@@ -75,12 +75,12 @@ events: # Maps from subscribing topic to signal ids
     topic: "joy_mapper_node/deep_learn_toggle"
     msg_type: "BoolStamped"
     trigger: False
-  parking_intersection_and_parking_off:
-    topic: "logic_gate_node/parking_intersection_and_parking_off"
+  intersection_done_and_parking_off:
+    topic: "logic_gate_node/intersection_done_and_parking_off"
     msg_type: "BoolStamped"
     trigger: True
-  parking_intersection_and_parking_on:
-    topic: "logic_gate_node/parking_intersection_and_parking_on"
+  intersection_done_and_parking_on:
+    topic: "logic_gate_node/intersection_done_and_parking_on"
     msg_type: "BoolStamped"
     trigger: True
   intersection_done_and_deep_lane_off:
@@ -251,8 +251,8 @@ states:
     transitions:
       intersection_done_and_deep_lane_off: "LANE_FOLLOWING"
       intersection_done_and_deep_lane_on: "DEEP_LANE_FOLLOWING"
-      parking_intersection_and_parking_off: "LANE_FOLLOWING"
-      parking_intersection_and_parking_on: "PARKING_LANE_FOLLOWING"
+      intersection_done_and_parking_off: "LANE_FOLLOWING"
+      intersection_done_and_parking_on: "PARKING_LANE_FOLLOWING"
       in_charger: "IN_CHARGING_AREA"
     active_nodes:
       - apriltag_node

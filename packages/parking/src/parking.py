@@ -147,7 +147,7 @@ class ParkingNode(DTROS):
         if msg.data:
             self.log('Resetting state to ENTERING_PARKING_LOT')
             self.state = INACTIVE
-            self.transitionToNextState()
+            self.transitionToNextState() # Transition to ENTERING_PARKING_LOT
 
 
     def cbSwitch(self, fsm_switch_msg):
@@ -292,7 +292,6 @@ class ParkingNode(DTROS):
 
         if next_state == ENTERING_PARKING_LOT:
             self.log('ENTERING_PARKING_LOT')
-            self.manualLaneControl('straight', duration=2.0)
             self.startNormalLaneFollowing()
 
         elif next_state == SEARCHING:

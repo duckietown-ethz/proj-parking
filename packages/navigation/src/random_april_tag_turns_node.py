@@ -107,13 +107,10 @@ class RandomAprilTagTurnsNode(object):
                         msg.data = True
 
                         if taginfo.id == 66:
-                            print('FUCK PARKING turning forward')
                             availableTurns = [1] # Forward to enter parking area
                         elif taginfo.id == 63:
-                            print('FUCK PARKING turning left')
                             availableTurns = [0] # Left to enter parking area
                         elif taginfo.id == 10:
-                            print('FUCK PARKING turning right')
                             availableTurns = [2] # Right to enter parking area
                 else:
                     #go through possible intersection types
