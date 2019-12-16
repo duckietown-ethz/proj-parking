@@ -342,21 +342,29 @@ class ParkingNode(DTROS):
             self.startNormalLaneFollowing() # Resume normal lane following
             self.pauseOperations(2) # Pause for a few more seconds
     
-    def waitForRandomTime(self,type='searching'):
+    def waitingForRandomTime(self,type='searching'):
         """
         Divide the maneuver time in slots of 20 seconds
-        so a duckiebot has to wait a random number of slots before efforting the maneuver
-        """
+        so a duckiebot has to wait a random number of slots before efforting the maneuver.
+        The duckiebot that is going around the parking area searching for parking, stops only if it knows that
+        the one who want to exit can do the maneuver in the next 5 sec (time needed for the maneuver).
+        """        
+        secs = time.localtime().tm_sec
+        slot = (int)(secs/self.timeSlotExiting)
+        delta = (slot+1)*self.timeSlotExiting-secs
+        rospy.log('Waiting Random Time')
         if type == 'exiting':
-            secs = time.localtime().tm_sec
-            wait = random.randrange(1,4)*self.timeSlotExiting+(secs-(int)(secs/self.timeSlotExiting)*self.timeSlotExiting)
+            wait = random.randrange(1,4)*self.timeSlotExiting+delta
+            rospy.log('[%s] wait before exiting',(self.node_name))
             self.pauseOperations(wait)
         else:
-            if secs-(int)(secs/self.timeSlotExiting<10) :
-                secs = time.localtime().tm_sec
-                wait = random.randrange(1,3)*self.timeSlotSearching+(secs-(int)(secs/self.timeSlotSearching)*self.timeSlotSearching)
-                self.pauseOperations(wait)
-                self.manualLaneControl('straight',5)
+            slot_search = (int)(delta/self.timeSlotSearching)
+            # stop only if it is in the first or in thte last time slot, because the car can go out
+            if slot_search==0 or slot_search==3 :
+                self.pauseOperations(self.timeSlotSearching)
+                rospy.log('[%s] wait before going straight',(self.node_name))
+            else:
+                rospy.log('[%s] can go straight',(self.node_name))
     
 
     def pauseOperations(self, num_sec):
