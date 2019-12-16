@@ -538,7 +538,7 @@ class lane_controller(object):
             car_control_msg.omega = 0.0
             car_control_msg.v = 0.23
         elif self.manual_command == 'right':
-            car_control_msg.omega = -2.5
+            car_control_msg.omega = -3.0
             car_control_msg.v = 0.23
         elif self.manual_command == 'left':
             car_control_msg.omega = -3
