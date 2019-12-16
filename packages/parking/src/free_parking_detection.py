@@ -70,6 +70,12 @@ class FreeParking(DTROS):
         tup = (self.node_name, is_reversing)
         rospy.loginfo('[%s] Reverse = %s' % tup)
         self.is_reversing = is_reversing
+        if is_reversing:
+            # Require to see more green when exiting parking spot
+            self.detection_threshold = 400
+        else:
+            # Less green needed when searching for parking spot
+            self.detection_threshold = 115
 
 
     def croppedImage(self, full_image):
