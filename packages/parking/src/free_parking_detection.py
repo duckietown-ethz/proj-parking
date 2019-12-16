@@ -55,7 +55,7 @@ class FreeParking(DTROS):
         )
 
         self.bridge = CvBridge()
-        self.detection_threshold = 300
+        self.detection_threshold = 500
         self.detect_green = True
         self.hsv_green1 = np.array([45, 100, 100])
         self.hsv_green2 = np.array([75, 255, 255])

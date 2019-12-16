@@ -208,6 +208,7 @@ class ParkingNode(DTROS):
 
             if self.state == EXITING_PARKING_LOT:
                 # Turn right to exit the parking lot
+                self.pauseOperations(3.0)
                 self.manualLaneControl('right', duration=1.5)
                 return
 
