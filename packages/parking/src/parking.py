@@ -84,6 +84,11 @@ class ParkingNode(DTROS):
             BoolStamped,
             queue_size=1
         )
+        self.joystick_control_pub = rospy.Publisher(
+            'joy_mapper_node/joystick_override',
+            BoolStamped,
+            queue_size=1
+        )
         self.led_detection_right_pub = rospy.Publisher(
             '~/%s/parking/led_detection_right' % self.veh_name,
             BoolStamped,
@@ -142,8 +147,6 @@ class ParkingNode(DTROS):
         if msg.data:
             self.log('Resetting state to ENTERING_PARKING_LOT')
             self.state = INACTIVE
-            self.at_red_line = False
-            self.blob_detected = False
             self.transitionToNextState() # Transition to ENTERING_PARKING_LOT
 
 
@@ -386,7 +389,7 @@ class ParkingNode(DTROS):
         self.manualLaneControl('none') # No special turning maneuvers
 
 
-    def startNormalLaneFollowing(self):
+    def startNormalLaneFollowing(self, restart=True):
         self.toggleReversal(reverse=False) # No more reverse control
         self.setLEDs('switchedoff') # Set LEDs off while lane following
         self.updateDoffset(0) # d_offset=0 for normal lane following
@@ -394,6 +397,18 @@ class ParkingNode(DTROS):
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
         self.manualLaneControl('none') # No special turning maneuvers
         self.updateGain(0.7) # Standardized gain
+        if restart:
+            self.restartLaneFollowing() # Switch FSM off and on again
+
+
+    def restartLaneFollowing(self):
+        override = BoolStamped()
+        override.header.stamp = rospy.Time.now()
+        override.data = True # Activate joystick control
+        self.joystick_control_pub.publish(override)
+        rospy.sleep(1) # Allow time for FSM state transition
+        override.data = False # Deactivate joystick --> activate lane following
+        self.joystick_control_pub.publish(override)
 
 
     def manualLaneControl(self, command, duration=None):
