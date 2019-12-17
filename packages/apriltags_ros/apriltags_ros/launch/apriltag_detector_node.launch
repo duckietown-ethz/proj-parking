@@ -1,0 +1,17 @@
+<launch>
+    <arg name="pkg_name" value="apriltags_ros"/>
+    <arg name="node_name" default="apriltag_detector_node"/>
+
+    <arg name="veh" doc="Name of vehicle. ex: megaman"/>
+    <arg name="config" default="baseline" doc="Specify a config."/>
+    <arg name="param_file_name" default="default" doc="Specify a param file. ex:megaman."/>
+
+    <group ns="$(arg veh)">
+        <node name="$(arg node_name)" pkg="$(arg pkg_name)" type="$(arg node_name)"
+              output="screen">
+            <rosparam command="load"
+                      file="$(find duckietown)/config/$(arg config)/$(arg pkg_name)/$(arg param_file_name).yaml"/>
+            <rosparam param="tag_descriptions" command="load" file="$(find apriltags_ros)/../signs_and_tags/tag_sizes.yaml"/>
+        </node>
+    </group>
+</launch>
