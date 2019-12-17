@@ -214,10 +214,8 @@ class ParkingNode(DTROS):
                 # No need to look for another red line in the near future
                 self.pauseRedLineDetection()
                 # Short manual right turn
-                self.manualLaneControl('right', duration=0.5)
-                # Resume lane following
+                self.manualLaneControl('right', duration=1)
                 # TODO - Publish parking_off=True
-                self.startNormalLaneFollowing()
                 return
 
             self.setLEDs('red') # Set LEDs to indicate we are at intersection

@@ -82,7 +82,7 @@ class FreeParking(DTROS):
         if self.is_reversing:
             return full_image[160:, :]
         else:
-            return full_image[160:, :120]
+            return full_image[130:HEIGHT-30, :120]
 
 
     def detectColor(self, data):
