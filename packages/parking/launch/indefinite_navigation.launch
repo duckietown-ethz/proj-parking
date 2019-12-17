@@ -1,0 +1,32 @@
+<launch>
+	<arg name="veh" default="$(env VEHICLE_NAME)"/>
+	<arg name="verbose" default="false"/>
+	<!-- start basic args -->
+	<include file="$(find duckietown_demos)/launch/master.launch">
+		<!-- Basic parameters -->
+		<arg name="veh" value="$(arg veh)"/>
+		<arg name="param_file_name" default="default" />
+		<arg name="visualization" value="true" />
+
+		<!-- Basic functionalities -->
+		<arg name="line_detector_param_file_name" default="default" />
+		<arg name="anti_instagram" default="true" />
+		<arg name="/camera/raw" value="true"/>
+		<arg name="/camera/raw/rect" value="true"/>
+		<arg name="LED" value="true"/>
+		<arg name="/LED/detector" value="true"/>
+		<arg name="/LED/pattern_switch" value="true"/>
+
+		<!-- Intersection arguments -->
+		<arg name="unicorn_intersection" value="true"/>
+		<arg name="apriltags" value="true" />
+		<arg name="apriltags_random" value="true" />
+		<arg name="intersectionType" value="trafficLight"/>
+
+		<!-- Multi-bot behaviours -->
+		<arg name="coordination" value="true"/>
+		<arg name="/coordination/implicit_coordination" value="false"/>
+		<arg name="/coordination/explicit_coordination" value="true"/>
+
+	</include>
+</launch>
