@@ -18,9 +18,6 @@ HEIGHT = 240
 class LEDDetectionNode(object):
 
     def __init__(self):
-        self.foo = 150
-        self.minArea = 10
-        self.minCircularity = 0.5
         self.node_name = rospy.get_name()
         self.veh = os.environ['VEHICLE_NAME']
         self.veh_name = rospy.get_namespace().strip("/")
@@ -31,10 +28,6 @@ class LEDDetectionNode(object):
         self.publish_duration = rospy.Duration.from_sec(1.0/self.publish_freq)
         self.last_stamp = rospy.Time.now()
         self.frontorback = "back" #CHANGE TO CHECK BOTH!!#os.environ.get("FRONT_OR_BACK")
-        self.hsv_red1 = np.array([0, 130, 110])
-        self.hsv_red2 = np.array([20, 255, 255])
-        self.hsv_red3 = np.array([160, 130, 110])
-        self.hsv_red4 = np.array([180, 255, 255])
         rospack = rospkg.RosPack()
 
         self.publish_circles = True
@@ -78,31 +71,7 @@ class LEDDetectionNode(object):
         self.deptholdb = 0
         self.time = rospy.get_rostime().to_sec()
         self.timeb = rospy.get_rostime().to_sec()
-        self.sub_foo = rospy.Subscriber(
-            '/foo',
-            Float64,
-            self.foo_cb,
-            queue_size=1
-        )
-        self.sub_bar = rospy.Subscriber(
-            '/bar',
-            Float64,
-            self.bar_cb,
-            queue_size=1
-        )
-        self.sub_cat = rospy.Subscriber(
-            '/cat',
-            Float64,
-            self.cat_cb,
-            queue_size=1
-        )
 
-    def foo_cb(self, msg):
-        self.foo = msg.data
-    def bar_cb(self, msg):
-        self.minArea = msg.data
-    def cat_cb(self, msg):
-        self.minCircularity = msg.data
 
     def bottomOfImage(self, full_image):
         if self.look_right:
@@ -201,11 +170,11 @@ class LEDDetectionNode(object):
 
         # Filter by Area
         params.filterByArea = True
-        params.minArea = 1 # self.minArea
+        params.minArea = 1
         params.filterByInertia = False
         params.filterByConvexity = False
         params.filterByCircularity = True
-        params.minCircularity = 0.3 # self.minCircularity
+        params.minCircularity = 0.3
         detector = cv2.SimpleBlobDetector_create(params)
 
         # Detect blobs.
@@ -219,23 +188,7 @@ class LEDDetectionNode(object):
         x1d = x2d = y1d = y2d = 0
         x1b = x2b = y1b = y2b = 0
         x1db = x2db = y1db = y2db = 0
-        redfound = False
-
-        for kp in keypoints_un:
-            redfound = True
-            """
-            row, col = int(kp.pt[1]), int(kp.pt[0])
-            pixel = cv_image_hsv[row, col]
-            np_pixel = np.zeros((1,1,3))
-            np_pixel[0,0,:] = pixel
-            x1 = cv2.inRange(np_pixel, self.hsv_red1, self.hsv_red2)
-            x2 = cv2.inRange(np_pixel, self.hsv_red3, self.hsv_red4)
-            x = cv2.bitwise_or(x1, x2)
-
-            if x == 1: # red
-                redfound = True
-                break
-            """
+        redfound = len(keypoints_un) > 0
 
         msg = BoolStamped()
         msg.header.stamp = rospy.Time.now()
