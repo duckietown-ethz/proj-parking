@@ -208,9 +208,16 @@ class lane_controller(object):
         # Gain for integrator of phi (phi = theta)
         self.k_Iphi = self.setupParameter("~k_Iphi",k_Iphi_fallback)
 
+        # setup backward parameters
+        self.k_d_back = rospy.setupParameter("~k_d_back",3.0)
+        self.k_theta_back = rospy.setupParameter("~k_theta_back",1.0)
+        self.k_Id_back = rospy.setupParameter("~k_Id_back",1.0)
+        self.k_Itheta_back = rospy.setupParameter("~k_Itheta_back",-1.0)
+
+
         self.omega_ff = self.setupParameter("~omega_ff", 0)
-        self.omega_max = self.setupParameter("~omega_max", 999)
-        self.omega_min = self.setupParameter("~omega_min", -999)
+        self.omega_max = self.setupParameter("~omega_max", 4.7)
+        self.omega_min = self.setupParameter("~omega_min", -4.7)
         self.use_radius_limit = self.setupParameter("~use_radius_limit", self.use_radius_limit_fallback)
         self.min_radius = self.setupParameter("~min_rad", 0.0)
 
@@ -230,6 +237,13 @@ class lane_controller(object):
         phi_ref = rospy.get_param("~phi_ref")
         use_radius_limit = rospy.get_param("~use_radius_limit")
         object_detected = rospy.get_param("~object_detected")
+
+        # get backward parameters
+        k_d_back = rospy.get_param("~k_d_back")
+        k_theta_back = rospy.get_param("~k_theta_back")
+        k_Id_back = rospy.get_param("~k_Id_back")
+        k_Itheta_back = rospy.get_param("~k_Itheta_back")
+
         self.omega_ff = rospy.get_param("~omega_ff")
         self.omega_max = rospy.get_param("~omega_max")
         self.omega_min = rospy.get_param("~omega_min")
@@ -248,23 +262,34 @@ class lane_controller(object):
             self.k_Id = k_Id
 
         params_old = (self.v_bar, self.k_d, self.k_theta, self.d_thres, self.theta_thres,
-            self.d_offset, self.k_Id, self.k_Iphi, self.use_radius_limit)
+            self.d_offset, self.k_Id, self.k_Iphi, self.use_radius_limit,
+            self.k_d_back,self.k_theta_back,self.k_Id_back,self.k_Itheta_back)
         params_new = (v_bar, k_d, k_theta, d_thres, theta_thres, d_offset,
-            k_Id, k_Iphi, use_radius_limit)
+            k_Id, k_Iphi, use_radius_limit,
+            k_d_back,k_theta_back,k_Id_back,k_Itheta_back)
 
         if params_old != params_new:
             rospy.loginfo("[%s] Gains changed." % (self.node_name))
 
-            self.v_bar = v_bar
-            self.k_d = k_d
-            self.k_theta = k_theta
-            self.d_thres = d_thres
             self.d_ref = d_ref
             self.phi_ref = phi_ref
             self.theta_thres = theta_thres
             self.d_offset = d_offset
+            self.v_bar = v_bar
+            self.d_thres = d_thres
+
+            self.k_d = k_d
+            self.k_theta = k_theta
+
             self.k_Id = k_Id
             self.k_Iphi = k_Iphi
+
+            # setting backward parameters
+            self.k_d_back = k_d_back
+            self.k_theta_back = k_theta_back
+
+            self.k_Id_back = k_Id_back
+            self.k_Itheta_back = k_Itheta_back
 
             if use_radius_limit != self.use_radius_limit:
                 self.use_radius_limit = use_radius_limit
@@ -428,16 +453,17 @@ class lane_controller(object):
     def updatePose(self, pose_msg):
         if self.should_reverse:
             backward = -1
-            self.k_d = 3
-            self.k_theta = 1
-            self.k_Id = -1
-            self.k_Iphi = -1
+            k_d=self.k_d_back #= 3
+            k_theta=self.k_theta_back #= 1
+            k_Id=self.k_Id_back #= -1
+            k_Iphi=self.k_Itheta_back #= -1
         else:
             backward = 1
-            self.k_d = -3
-            self.k_theta = -1
-            self.k_Id = 1
-            self.k_Iphi = 0
+            k_d=self.k_d #= -3
+            k_theta=self.k_theta #= -1
+            k_Id=self.k_Id #= 1
+            k_Iphi=self.k_Iphi #= 0
+
 
         self.lane_reading = pose_msg
 
@@ -500,8 +526,7 @@ class lane_controller(object):
             omega_feedforward = 0
 
         # Scale the parameters linear such that their real value is at 0.22m/s
-        omega = self.k_d * (0.22/self.v_bar) * self.cross_track_err + \
-            self.k_theta * (0.22/self.v_bar) * self.heading_err
+        omega = k_d * (0.22/self.v_bar) * self.cross_track_err + k_theta * (0.22/self.v_bar) * self.heading_err
         omega += backward * omega_feedforward
 
         # check if nominal omega satisfies min radius, otherwise constrain it to minimal radius
@@ -513,8 +538,8 @@ class lane_controller(object):
 
         if not self.fsm_state == "SAFE_JOYSTICK_CONTROL":
             # apply integral correction (these should not affect radius, hence checked afterwards)
-            omega -= self.k_Id * (0.22/self.v_bar) * self.cross_track_integral
-            omega -= self.k_Iphi * (0.22/self.v_bar) * self.heading_integral
+            omega -= k_Id * (0.22/self.v_bar) * self.cross_track_integral
+            omega -= k_Iphi * (0.22/self.v_bar) * self.heading_integral
 
         if car_control_msg.v == 0:
             omega = 0
