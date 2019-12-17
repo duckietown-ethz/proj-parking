@@ -10,7 +10,7 @@ tag_id,tag_type,street_name,vehicle_name,traffic_sign_type
 7,TrafficSign,,,oneway-left
 8,TrafficSign,,,4-way-intersect
 9,TrafficSign,,,right-T-intersect
-10,TrafficSign,,,left-T-intersect
+10,TrafficSign,,,parking
 11,TrafficSign,,,T-intersection
 12,TrafficSign,,,pedestrian
 13,TrafficSign,,,4-way-intersect
@@ -63,10 +63,10 @@ tag_id,tag_type,street_name,vehicle_name,traffic_sign_type
 60,TrafficSign,,,right-T-intersect
 61,TrafficSign,,,left-T-intersect
 62,TrafficSign,,,left-T-intersect
-63,TrafficSign,,,left-T-intersect
+63,TrafficSign,,,parking
 64,TrafficSign,,,left-T-intersect
 65,TrafficSign,,,T-intersection
-66,TrafficSign,,,T-intersection
+66,TrafficSign,,,parking
 67,TrafficSign,,,T-intersection
 68,TrafficSign,,,T-intersection
 69,TrafficSign,,,do-not-enter

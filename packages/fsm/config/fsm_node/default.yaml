@@ -91,14 +91,6 @@ events: # Maps from subscribing topic to signal ids
     topic: "logic_gate_node/intersection_done_and_deep_lane_on"
     msg_type: "BoolStamped"
     trigger: True
-  at_stop_line_and_parking_off:
-    topic: "logic_gate_node/at_stop_line_and_parking_off"
-    msg_type: "BoolStamped"
-    trigger: True
-  at_stop_line_and_parking_on:
-    topic: "logic_gate_node/at_stop_line_and_parking_on"
-    msg_type: "BoolStamped"
-    trigger: True
   at_stop_line_and_charging_exit:
     topic: "logic_gate_node/at_stop_line_and_charging_exit"
     msg_type: "BoolStamped"
@@ -190,8 +182,7 @@ states:
 
   LANE_FOLLOWING:
     transitions:
-      at_stop_line_and_parking_off: "INTERSECTION_COORDINATION"
-      at_stop_line_and_parking_on: "ARRIVE_AT_STOP_LINE"
+      at_stop_line: "INTERSECTION_COORDINATION"
       deep_lane_following_on: "DEEP_LANE_FOLLOWING"
       calibration_start: "CALIBRATING"
       in_charger: "IN_CHARGING_AREA"
@@ -229,8 +220,7 @@ states:
 
   DEEP_LANE_FOLLOWING:
     transitions:
-      at_stop_line_and_parking_off: "INTERSECTION_COORDINATION"
-      at_stop_line_and_parking_on: "ARRIVE_AT_STOP_LINE"
+      at_stop_line: "INTERSECTION_COORDINATION"
       deep_lane_following_off: "LANE_FOLLOWING"
     active_nodes:
       - decoder_node
@@ -279,8 +269,7 @@ states:
 
   IN_CHARGING_AREA:
     transitions:
-      at_stop_line_and_parking_off: "CHARGING_FIRST_IN_LINE"
-      at_stop_line_and_parking_on: "CHARGING_FIRST_IN_LINE"
+      at_stop_line: "CHARGING_FIRST_IN_LINE"
     active_nodes:
       - decoder_node
       - line_detector_node

@@ -62,7 +62,7 @@
   tag_type: TrafficSign
   street_name:
   vehicle_name:
-  traffic_sign_type: left-T-intersect
+  traffic_sign_type: parking
 
 - tag_id: 11
   tag_type: TrafficSign
@@ -374,7 +374,7 @@
   tag_type: TrafficSign
   street_name:
   vehicle_name:
-  traffic_sign_type: left-T-intersect
+  traffic_sign_type: parking
 
 - tag_id: 63
   tag_type: TrafficSign
@@ -398,7 +398,7 @@
   tag_type: TrafficSign
   street_name:
   vehicle_name:
-  traffic_sign_type: T-intersection
+  traffic_sign_type: parking
 
 - tag_id: 67
   tag_type: TrafficSign
