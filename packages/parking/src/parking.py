@@ -345,7 +345,7 @@ class ParkingNode(DTROS):
         self.d_offset_pub.publish(new_offset)
 
 
-    def updateTopCutoff(self, cutoff=40):
+    def updateTopCutoff(self, cutoff=55):
         # Cutoff (don't examine) the top section of the image for line detector
         self.log('Setting line detector top_cutoff=%d' % cutoff)
         param_name = '/%s/line_detector_node/top_cutoff' % self.veh_name

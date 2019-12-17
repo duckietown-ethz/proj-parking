@@ -1,19 +1,18 @@
 img_size: [120,160]
-top_cutoff: 40
+top_cutoff: 55
+segment_max_threshold: 10
+
 
 # should be an array of 2 elements. The first is the name of the class
 # and the second should be the parameters.
 # The class should be an abstract instance of LineDetectorInterface
-
-#green added for parking project viciopoli01
-
 detector:
   - line_detector.LineDetectorHSV
   - configuration:
       dilation_kernel_size: 3
       canny_thresholds: [80,200]
       hough_threshold: 2
-      hough_min_line_length: 3
+      hough_min_line_length: 6
       hough_max_line_gap:    1
 
       hsv_white1:  [0,0,150]

@@ -60,7 +60,6 @@ def color_segment(area_white, area_red, area_yellow, area_green, area_blue):
         x[:,:,G] *= 1
         x[:,:,B] *= 0
         return x
-    #added for parking viciopoli01
     def green(x):
         x = cv2.cvtColor(x, cv2.COLOR_GRAY2BGR)
         x[:,:,R] *= 0
@@ -73,9 +72,7 @@ def color_segment(area_white, area_red, area_yellow, area_green, area_blue):
         x[:,:,G] *= 0
         x[:,:,B] *= 1
         return x
-
     h, w = area_white.shape
-    #added for parking viciopoli01
     orig = [area_white, area_red, area_yellow, area_green, area_blue]
     masks = [white(area_white), red(area_red), yellow(area_yellow), green(area_green), blue(area_blue)]
 
