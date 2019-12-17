@@ -80,7 +80,7 @@ class FreeParking(DTROS):
 
     def croppedImage(self, full_image):
         if self.is_reversing:
-            return full_image[160:, :]
+            return full_image[130:HEIGHT-30, :]
         else:
             return full_image[160:, :120]
 
