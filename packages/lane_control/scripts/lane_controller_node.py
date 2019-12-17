@@ -239,15 +239,10 @@ class lane_controller(object):
         object_detected = rospy.get_param("~object_detected")
 
         # get backward parameters
-        
         k_d_back = rospy.get_param("~k_d_back")
         k_theta_back = rospy.get_param("~k_theta_back")
         k_Id_back = rospy.get_param("~k_Id_back")
         k_Itheta_back = rospy.get_param("~k_Itheta_back")
-
-        rospy.loginfo("[%s] THESE ARE THE BACKWARD PARAMETRES %s %s %s %s",(self.node_name,
-        self.k_d_back,self.k_theta_back,self.k_Id_back,self.k_Itheta_back))
-
 
         self.omega_ff = rospy.get_param("~omega_ff")
         self.omega_max = rospy.get_param("~omega_max")
@@ -468,11 +463,6 @@ class lane_controller(object):
             k_theta=self.k_theta #= -1
             k_Id=self.k_Id #= 1
             k_Iphi=self.k_Iphi #= 0
-
-
-
-        rospy.loginfo("[%s] THESE ARE THE BACKWARD PARAMETRES %s %s %s %s",(self.node_name,
-        k_d,k_theta,k_Id,k_Itheta))
 
 
         self.lane_reading = pose_msg
