@@ -27,6 +27,10 @@ class LEDDetectionNode(object):
         self.publish_duration = rospy.Duration.from_sec(1.0/self.publish_freq)
         self.last_stamp = rospy.Time.now()
         self.frontorback = "back" #CHANGE TO CHECK BOTH!!#os.environ.get("FRONT_OR_BACK")
+        self.hsv_red1 = np.array([0, 140, 100])
+        self.hsv_red2 = np.array([15, 255, 255])
+        self.hsv_red3 = np.array([165, 140, 100])
+        self.hsv_red4 = np.array([180, 255, 255])
         rospack = rospkg.RosPack()
 
         self.publish_circles = True
@@ -74,9 +78,9 @@ class LEDDetectionNode(object):
 
     def bottomOfImage(self, full_image):
         if self.look_right:
-            return full_image[HEIGHT//2-40:HEIGHT//2+30, WIDTH//2:WIDTH-10]
+            return full_image[HEIGHT//2-40:HEIGHT//2+30, WIDTH//2:WIDTH]
         else:
-            return full_image[HEIGHT//2-40:HEIGHT//2+15,10:WIDTH//2]
+            return full_image[HEIGHT//2-40:HEIGHT//2+15,:WIDTH//2]
 
 
     def setupParam(self, param_name, default_value):
@@ -153,7 +157,7 @@ class LEDDetectionNode(object):
         now = rospy.Time.now()
 
         cv_image_color = cv_image_color[cv_image_color.shape[0]/4:cv_image_color.shape[0]/4*3]
-
+        cv_image_hsv = cv2.cvtColor(cv_image_color, cv2.COLOR_BGR2HSV)
         cv_image1 = cv2.cvtColor(cv_image_color, cv2.COLOR_BGR2GRAY)
         #cv_image1 = cv_image1[cv_image1.shape[0]/4:cv_image1.shape[0]/4*3]
 
@@ -190,16 +194,22 @@ class LEDDetectionNode(object):
         redfound = 0
         whitefound = 0
 
-        for i,key1 in enumerate(keypoints_un):
-            pixel1 = cv_image_color[int(keypoints[i].pt[1]), int(keypoints[i].pt[0])]
+        for kp in keypoints_un:
+            row, col = int(kp.pt[1]), int(kp.pt[0])
+            pixel = cv_image_hsv[row, col]
+            np_pixel = np.zeros((1,1,3))
+            np_pixel[0,0,:] = pixel
+            x1 = cv2.inRange(np_pixel, self.hsv_red1, self.hsv_red2)
+            x2 = cv2.inRange(np_pixel, self.hsv_red3, self.hsv_red4)
+            x = cv2.bitwise_or(x1, x2)
+            print("x=%s" % str(x))
 
-            blue1 = pixel1[0]
-            bluethreshold = 240
-            # Check if the blue value of the led light is matching the red back or the white front
-            if (blue1 < bluethreshold): # red
+            if x == 1: # red
+                print("red found")
                 redfound = 1
-            if  (blue1 >= bluethreshold): #white
-                whitefound = 1
+                break
+            # if  (blue1 >= bluethreshold): #white
+            #    whitefound = 1
 
         if redfound == 1:
             msg = BoolStamped()
