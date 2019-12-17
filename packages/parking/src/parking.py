@@ -138,8 +138,9 @@ class ParkingNode(DTROS):
             queue_size=1
         )
         
-        # when this variable is true the duckiebot leaves the parking spot
-        self.exit_parking_spot = rospy.Subscriber(
+        # when this subscriber receives `True` and the Duckiebot is
+        # parked, the Duckiebot will exit the parking spot
+        self.exit_parking_spot_sub = rospy.Subscriber(
             '~/%s/parking/time_exiting_parking_spot' % self.veh_name,
             BoolStamped,
             self.cbLeaveParkingSpot,
@@ -283,7 +284,6 @@ class ParkingNode(DTROS):
         self.log('Detected Duckiebot with red LEDs (no intersection)!')
         self.setLEDs('red') # Set LEDs to indicate we saw a Duckie that wants to exit
         self.waitForRandomTime()
-        self.pauseOperations(10) # Pause for some time till danger is gone
         self.setLEDs('switchedoff') # Set LEDs off while lane following
 
     """
@@ -342,7 +342,7 @@ class ParkingNode(DTROS):
             self.startNormalLaneFollowing() # Resume normal lane following
             self.pauseOperations(2) # Pause for a few more seconds
     
-    def waitingForRandomTime(self,type='searching'):
+    def waitingForRandomTime(self, wait_type='searching'):
         """
         Divide the maneuver time in slots of 20 seconds
         so a duckiebot has to wait a random number of slots before efforting the maneuver.
@@ -350,21 +350,21 @@ class ParkingNode(DTROS):
         the one who want to exit can do the maneuver in the next 5 sec (time needed for the maneuver).
         """        
         secs = time.localtime().tm_sec
-        slot = (int)(secs/self.timeSlotExiting)
-        delta = (slot+1)*self.timeSlotExiting-secs
-        rospy.log('Waiting Random Time')
-        if type == 'exiting':
-            wait = random.randrange(1,4)*self.timeSlotExiting+delta
-            rospy.log('[%s] wait before exiting',(self.node_name))
+        slot = secs // self.timeSlotExiting
+        delta = (slot + 1) * self.timeSlotExiting - secs
+        rospy.log('Waiting a random time')
+        if wait_type == 'exiting':
+            wait = random.randrange(1, 4) * self.timeSlotExiting + delta
+            rospy.log('[%s] wait before exiting', self.node_name)
             self.pauseOperations(wait)
         else:
-            slot_search = (int)(delta/self.timeSlotSearching)
+            slot_search = delta // self.timeSlotSearching
             # stop only if it is in the first or in thte last time slot, because the car can go out
-            if slot_search==0 or slot_search==3 :
+            if slot_search == 0 or slot_search == 3:
                 self.pauseOperations(self.timeSlotSearching)
-                rospy.log('[%s] wait before going straight',(self.node_name))
+                rospy.log('[%s] wait before going straight', self.node_name)
             else:
-                rospy.log('[%s] can go straight',(self.node_name))
+                rospy.log('[%s] can go straight', self.node_name)
     
 
     def pauseOperations(self, num_sec):
