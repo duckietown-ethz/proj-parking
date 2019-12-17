@@ -2,7 +2,7 @@
 
 #propagation
 use_propagation: True
-matrix_mesh_size: 1
+matrix_mesh_size: 1.2
 #matrix_delta_d: 0.02
 #matrix_delta_phi: 0.1
 lane_offset: 0.115

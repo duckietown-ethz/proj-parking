@@ -1,6 +1,6 @@
 img_size: [120,160]
 top_cutoff: 55
-segment_max_threshold: 10
+segment_max_threshold: 16
 
 
 # should be an array of 2 elements. The first is the name of the class
