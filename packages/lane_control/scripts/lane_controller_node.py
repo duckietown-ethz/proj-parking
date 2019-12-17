@@ -209,10 +209,10 @@ class lane_controller(object):
         self.k_Iphi = self.setupParameter("~k_Iphi",k_Iphi_fallback)
 
         # setup backward parameters
-        self.k_d_back = rospy.setupParameter("~k_d_back",3.0)
-        self.k_theta_back = rospy.setupParameter("~k_theta_back",1.0)
-        self.k_Id_back = rospy.setupParameter("~k_Id_back",1.0)
-        self.k_Itheta_back = rospy.setupParameter("~k_Itheta_back",-1.0)
+        self.k_d_back = self.setupParameter("~k_d_back",3.0)
+        self.k_theta_back = self.setupParameter("~k_theta_back",1.0)
+        self.k_Id_back = self.setupParameter("~k_Id_back",1.0)
+        self.k_Itheta_back = self.setupParameter("~k_Itheta_back",-1.0)
 
 
         self.omega_ff = self.setupParameter("~omega_ff", 0)
