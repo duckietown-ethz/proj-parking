@@ -214,7 +214,7 @@ class ParkingNode(DTROS):
                 # No need to look for another red line in the near future
                 self.pauseRedLineDetection()
                 # Short manual right turn
-                self.manualLaneControl('right', duration=1)
+                self.manualLaneControl('right', duration=1.5)
                 # TODO - Publish parking_off=True
                 return
 
@@ -236,9 +236,7 @@ class ParkingNode(DTROS):
                 # No need to look for another red line in the near future
                 self.pauseRedLineDetection()
                 # Short manual right turn
-                self.manualLaneControl('right', duration=0.5)
-                # At intersection; automatically turn right to enter parking area
-                self.manualLaneControl('none')
+                self.manualLaneControl('right', duration=1.5)
                 # Begin searching
                 self.transitionToNextState()
 
@@ -256,7 +254,7 @@ class ParkingNode(DTROS):
                     self.pauseOperations(1)
 
                 # Go straight at the intersection to continue searching
-                self.manualLaneControl('straight', duration=2.0)
+                self.manualLaneControl('straight', duration=2.5)
                 # Look on the left for Duckiebots backing out of parking spots
                 self.toggleLEDDetection(led_detection_right=False)
 
