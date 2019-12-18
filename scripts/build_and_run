@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export BOTNAME=manipanpan
+export BOTNAME=cristina
 
-docker -H "$BOTNAME".local build -t proj-parking:v1 .
+docker -H "$BOTNAME".local build --no-cache -t proj-parking:v1 .
 
 docker -H "$BOTNAME".local run -it --rm -v /data:/data --privileged --network=host proj-parking:v1
