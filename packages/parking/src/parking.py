@@ -64,6 +64,11 @@ class ParkingNode(DTROS):
         )
 
         # Publishers
+        self.stop_parking_fsm_mode = rospy.Publisher(
+            '/%s/parking_off',
+            BoolStamped,
+            queue_size=1
+        )
         self.d_offset_pub = rospy.Publisher(
             'lane_controller_node/doffset',
             Float64,
@@ -231,7 +236,8 @@ class ParkingNode(DTROS):
                 self.pauseRedLineDetection()
                 # Short manual right turn
                 self.manualLaneControl('right', duration=1.5)
-                # TODO - Publish parking_off=True
+                # Exit parking mode in the FSM
+                self.stopParkingModeFSM()
                 return
 
             self.setLEDs('red') # Set LEDs to indicate we are at intersection
@@ -457,6 +463,13 @@ class ParkingNode(DTROS):
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
         self.manualLaneControl('none') # No special turning maneuvers
         self.updateGain(0.7) # Standardized gain
+
+
+    def stopParkingModeFSM(self):
+        msg = BoolStamped()
+        msg.header.stamp = rospy.Time.now()
+        msg.data = True
+        self.stop_parking_fsm_mode.publish(msg)
 
 
     def manualLaneControl(self, command, duration=None):
