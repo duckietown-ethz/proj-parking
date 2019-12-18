@@ -55,7 +55,7 @@ class FreeParking(DTROS):
         )
 
         self.bridge = CvBridge()
-        self.detection_threshold = 300
+        self.detection_threshold = 115
         self.detect_green = True
         self.hsv_green1 = np.array([45, 100, 100])
         self.hsv_green2 = np.array([75, 255, 255])
@@ -70,11 +70,17 @@ class FreeParking(DTROS):
         tup = (self.node_name, is_reversing)
         rospy.loginfo('[%s] Reverse = %s' % tup)
         self.is_reversing = is_reversing
+        if is_reversing:
+            # Require to see more green when exiting parking spot
+            self.detection_threshold = 400
+        else:
+            # Less green needed when searching for parking spot
+            self.detection_threshold = 115
 
 
     def croppedImage(self, full_image):
         if self.is_reversing:
-            return full_image[160:, :]
+            return full_image[130:HEIGHT-30, :]
         else:
             return full_image[160:, :120]
 

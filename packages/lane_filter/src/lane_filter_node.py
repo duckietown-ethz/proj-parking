@@ -14,6 +14,9 @@ class LaneFilterNode(object):
         self.node_name = "Lane Filter"
         self.active = True
         self.filter = None
+        self.matrix_delta_d = 0.2
+        self.matrix_delta_phi = 0.1
+        self.matrix_mesh_size = 1
         self.updateParams(None)
 
         self.t_last_update = rospy.get_time()
@@ -23,6 +26,16 @@ class LaneFilterNode(object):
         self.phi_median = []
         self.latencyArray = []
 
+        # Since we have knowledge of maximum linear and angular velocity, we can have some idea
+        # of when the enstimate are too far from what we may expect, and correct them
+        # (basically applying a low pass filter)
+        self.last_d = []
+        self.last_phi = []
+        self.veh_name = rospy.get_namespace().strip("/")
+        self.omega_max = rospy.get_param("/" + self.veh_name + "/lane_controller_node/omega_max")
+        self.omega_min = rospy.get_param("/" + self.veh_name +"/lane_controller_node/omega_min")
+        self.v_ref = rospy.get_param("/" + self.veh_name + "/lane_controller_node/v_bar")
+        self.gain = rospy.get_param("/" + self.veh_name + "/kinematics_node/gain")
 
         # Define Constants
         self.curvature_res = self.filter.curvature_res
@@ -43,7 +56,7 @@ class LaneFilterNode(object):
         self.pub_ml_img = rospy.Publisher("~ml_img", Image, queue_size=1)
 
 
-        self.pub_entropy    = rospy.Publisher("~entropy",Float32, queue_size=1)
+        self.pub_entropy = rospy.Publisher("~entropy",Float32, queue_size=1)
 
 
         # FSM
@@ -82,6 +95,20 @@ class LaneFilterNode(object):
             self.loginfo('new filter config: %s' % str(c))
             self.filter = instantiate(c[0], c[1])
 
+        old_matrix_mesh_size = self.matrix_mesh_size
+
+        #updating lane_offset
+        self.lane_offset = rospy.get_param('~lane_offset', True)
+
+        #updating matrix parameter delta_d and delta_phi
+        self.matrix_mesh_size = rospy.get_param('~matrix_mesh_size', True)
+
+        #changing the size of belief and masurement likelihood matrix
+        if self.matrix_mesh_size != old_matrix_mesh_size:
+            self.filter.update_matrix(self.matrix_mesh_size)
+            self.loginfo('matrix_mesh_size %r' % self.matrix_mesh_size)
+
+
     def cbSwitch(self, switch_msg):
         self.active = switch_msg.data
 
@@ -106,17 +133,19 @@ class LaneFilterNode(object):
         v = self.velocity.v
         w = self.velocity.omega
 
+        # ==== HERE THE UPPER BOUNDS ========
+        ub_d = dt * self.omega_max * self.gain * 1000
+        ub_phi = dt * self.v_ref * self.gain * 1000
+
         self.filter.predict(dt=dt, v=v, w=w)
         self.t_last_update = current_time
 
         # Step 2: update
 
-        self.filter.update(segment_list_msg.segments)
+        self.filter.update(segment_list_msg.segments, self.lane_offset)
 
         # Step 3: build messages and publish things
         [d_max, phi_max] = self.filter.getEstimate()
-        # print "d_max = ", d_max
-        # print "phi_max = ", phi_max
 
         inlier_segments = self.filter.get_inlier_segments(segment_list_msg.segments, d_max, phi_max)
         inlier_segments_msg = SegmentList()
@@ -130,8 +159,27 @@ class LaneFilterNode(object):
         # build lane pose message to send
         lanePose = LanePose()
         lanePose.header.stamp = segment_list_msg.header.stamp
+
         lanePose.d = d_max[0]
+        if not self.last_d:
+            self.last_d = lanePose.d
+        if lanePose.d - self.last_d > ub_d :
+            lanePose.d = self.last_d + ub_d
+            rospy.loginfo("d changed too much")
+        if lanePose.d - self.last_d < -ub_d :
+            lanePose.d = self.last_d - ub_d
+            rospy.loginfo("d changed too much")
+
         lanePose.phi = phi_max[0]
+        if not self.last_phi:
+            self.last_phi = lanePose.phi
+        if lanePose.phi - self.last_phi > ub_phi :
+            lanePose.phi = self.last_phi + ub_phi
+            rospy.loginfo("phi changed too much")
+        if lanePose.phi - self.last_phi < -ub_phi :
+            lanePose.phi = self.last_phi - ub_phi
+            rospy.loginfo("phi changed too much")
+
         lanePose.in_lane = in_lane
         # XXX: is it always NORMAL?
         lanePose.status = lanePose.NORMAL
@@ -142,16 +190,18 @@ class LaneFilterNode(object):
 
         self.pub_lane_pose.publish(lanePose)
 
-        # TODO-TAL add a debug param to not publish the image !!
-        # TODO-TAL also, the CvBridge is re instantiated every time... 
+        # Save for next iteration       <=========
+        self.last_d = lanePose.d
+        self.last_phi = lanePose.phi
+
         # publish the belief image
         bridge = CvBridge()
         belief_img = bridge.cv2_to_imgmsg(np.array(255 * self.filter.beliefArray[0]).astype("uint8"), "mono8")
         belief_img.header.stamp = segment_list_msg.header.stamp
         self.pub_belief_img.publish(belief_img)
-        
-        
-        
+
+
+
         # Latency of Estimation including curvature estimation
         estimation_latency_stamp = rospy.Time.now() - timestamp_now
         estimation_latency = estimation_latency_stamp.secs + estimation_latency_stamp.nsecs/1e9
@@ -160,9 +210,6 @@ class LaneFilterNode(object):
         if (len(self.latencyArray) >= 20):
             self.latencyArray.pop(0)
 
-        # print "Latency of segment list: ", segment_latency
-        # print("Mean latency of Estimation:................. %s" % np.mean(self.latencyArray))
-
         # also publishing a separate Bool for the FSM
         in_lane_msg = BoolStamped()
         in_lane_msg.header.stamp = segment_list_msg.header.stamp
@@ -170,7 +217,7 @@ class LaneFilterNode(object):
         self.pub_in_lane.publish(in_lane_msg)
 
 
-        
+
     def cbMode(self, msg):
         return #TODO adjust self.active
 

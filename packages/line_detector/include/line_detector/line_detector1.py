@@ -59,12 +59,8 @@ class LineDetectorHSV(dtu.Configurable, LineDetectorInterface):
                                            (self.dilation_kernel_size, self.dilation_kernel_size))
         bw = cv2.dilate(bw, kernel)
 
-
-
         # refine edge for certain color
         edge_color = cv2.bitwise_and(bw, self.edges)
-
-        #print("AREA : max : "+str(np.amax(bw))+" area?! "+str(np.sum(bw/255)))
 
         return bw, edge_color
 
@@ -134,14 +130,19 @@ class LineDetectorHSV(dtu.Configurable, LineDetectorInterface):
             self._correctPixelOrdering(lines, normals)
         return centers, normals
 
-    def detectLines(self, color):
+    def detectLines(self, color, max_threshold):
         with dtu.timeit_clock('_colorFilter'):
             bw, edge_color = self._colorFilter(color)
         with dtu.timeit_clock('_HoughLine'):
             lines = self._HoughLine(edge_color)
         with dtu.timeit_clock('_findNormal'):
             centers, normals = self._findNormal(bw, lines)
-        return Detections(lines=lines, normals=normals, area=bw, centers=centers)
+        return Detections(
+            lines=lines[0:max_threshold],
+            normals=normals[0:max_threshold],
+            area=bw,
+            centers=centers[0:max_threshold]
+        )
 
     def setImage(self, bgr):
 

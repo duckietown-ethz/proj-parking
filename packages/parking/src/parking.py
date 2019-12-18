@@ -53,6 +53,7 @@ class ParkingNode(DTROS):
         self.state = INACTIVE
         self.at_red_line = False
         self.blob_detected = False
+        self.ignore_red_lines = False
         self.timeSlotExiting = 20 # time needed to do the maneuver
         self.timeSlotSearching = 5 # time needed to do the maneuver
 
@@ -85,11 +86,6 @@ class ParkingNode(DTROS):
         )
         self.reverse_pub = rospy.Publisher(
             '~/%s/parking/reverse' % self.veh_name,
-            BoolStamped,
-            queue_size=1
-        )
-        self.joystick_control_pub = rospy.Publisher(
-            'joy_mapper_node/joystick_override',
             BoolStamped,
             queue_size=1
         )
@@ -165,6 +161,9 @@ class ParkingNode(DTROS):
         if msg.data:
             self.log('Resetting state to ENTERING_PARKING_LOT')
             self.state = INACTIVE
+            self.at_red_line = False
+            self.blob_detected = False
+            self.ignore_red_lines = False
             self.transitionToNextState() # Transition to ENTERING_PARKING_LOT
 
 
@@ -216,6 +215,9 @@ class ParkingNode(DTROS):
         if self.state not in [SEARCHING, ENTERING_PARKING_LOT, EXITING_PARKING_LOT]:
             return
 
+        if self.ignore_red_lines:
+            return
+
         at_intersection = (msg.data == True)
         if at_intersection:
             self.at_red_line = True
@@ -223,8 +225,13 @@ class ParkingNode(DTROS):
             self.manualLaneControl('stop') # Stop indefinitely (no timeout)
 
             if self.state == EXITING_PARKING_LOT:
-                # Turn right to exit the parking lot
+                # Pause for a few seconds at the stop line
+                self.pauseOperations(3.0)
+                # No need to look for another red line in the near future
+                self.pauseRedLineDetection()
+                # Short manual right turn
                 self.manualLaneControl('right', duration=1.5)
+                # TODO - Publish parking_off=True
                 return
 
             self.setLEDs('red') # Set LEDs to indicate we are at intersection
@@ -242,9 +249,12 @@ class ParkingNode(DTROS):
                     self.setLEDs('red') # Set LEDs to indicate we're at intersection
                     self.pauseOperations(1)
 
-                # At intersection; turn right to enter parking area
+                # No need to look for another red line in the near future
+                self.pauseRedLineDetection()
+                # Short manual right turn
                 self.manualLaneControl('right', duration=1.5)
-                self.transitionToNextState() # Begin searching
+                # Begin searching
+                self.transitionToNextState()
 
             elif self.state == SEARCHING:
                 # At intersection while searching
@@ -260,7 +270,7 @@ class ParkingNode(DTROS):
                     self.pauseOperations(1)
 
                 # Go straight at the intersection to continue searching
-                self.manualLaneControl('straight', duration=2.0)
+                self.manualLaneControl('straight', duration=2.5)
                 # Look on the left for Duckiebots backing out of parking spots
                 self.toggleLEDDetection(led_detection_right=False)
 
@@ -323,6 +333,7 @@ class ParkingNode(DTROS):
             self.updateTopCutoff(80) # Cut out blue lines from other parking spots
             self.updateLaneFilterColor('blue') # Follow blue lane, not yellow
             self.updateDoffset(0.18) # Follow the left of the blue lane
+            self.updateGain(0.5) # Go slower when entering parking spot
             self.setLEDs('blink') # Blink LEDs to indicate we are parking now
             self.pauseOperations(2) # Pause for 2 sec before continuing
 
@@ -334,6 +345,7 @@ class ParkingNode(DTROS):
         elif next_state == EXITING_PARKING_SPOT:
             self.waitForRandomTime('exiting')
             self.log('EXITING_PARKING_SPOT')
+            self.manualLaneControl('stop') # Force lane controller to stop
             self.setLEDs('red') # Set LEDs to indicate leaving parking
             self.pauseOperations(3) # Allow time for others to detect LEDs
             self.startBackwardsLaneFollowing() # Backwards wheel commands
@@ -346,7 +358,7 @@ class ParkingNode(DTROS):
             # Look on the left for Duckiebots backing out of parking spots
             self.toggleLEDDetection(led_detection_right=False)
             self.startNormalLaneFollowing() # Resume normal lane following
-            self.pauseOperations(2) # Pause for a few more seconds
+
     
     def waitingForRandomTime(self, wait_type='searching'):
         """
@@ -371,7 +383,7 @@ class ParkingNode(DTROS):
                 rospy.log('[%s] wait before going straight', self.node_name)
             else:
                 rospy.log('[%s] can go straight', self.node_name)
-    
+
 
     def pauseOperations(self, num_sec):
         self.log('Attempting to pause for %.1f seconds' % num_sec)
@@ -384,14 +396,14 @@ class ParkingNode(DTROS):
         self.d_offset_pub.publish(new_offset)
 
 
-    def updateTopCutoff(self, cutoff=40):
+    def updateTopCutoff(self, cutoff=55):
         # Cutoff (don't examine) the top section of the image for line detector
         self.log('Setting line detector top_cutoff=%d' % cutoff)
         param_name = '/%s/line_detector_node/top_cutoff' % self.veh_name
         rospy.set_param(param_name, cutoff)
 
 
-    def updateGain(self, gain=0.7):
+    def updateGain(self, gain):
         # Update the gain of the kinematics package
         self.log('Setting kinematic control gain=%.2f' % gain)
         param_name = '/%s/kinematics_node/gain' % self.veh_name
@@ -420,7 +432,16 @@ class ParkingNode(DTROS):
         self.led_detection_right_pub.publish(msg)
 
 
+    def pauseRedLineDetection(self, resume_after=2.0):
+        self.log('Pausing red line detection for %.1f seconds' % resume_after)
+        def _cb(e):
+            self.ignore_red_lines = False
+        self.ignore_red_lines = True
+        rospy.Timer(rospy.Duration.from_sec(resume_after), _cb, oneshot=True)
+
+
     def startBackwardsLaneFollowing(self):
+        self.updateGain(1.0) # Go a bit faster when exiting parking spot
         self.updateTopCutoff(50) # Cut off upper image
         self.updateDoffset(0.118) # Follow center of lane
         self.updateLaneFilterColor('blue') # Follow blue lines
@@ -428,7 +449,7 @@ class ParkingNode(DTROS):
         self.manualLaneControl('none') # No special turning maneuvers
 
 
-    def startNormalLaneFollowing(self, restart=True):
+    def startNormalLaneFollowing(self):
         self.toggleReversal(reverse=False) # No more reverse control
         self.setLEDs('switchedoff') # Set LEDs off while lane following
         self.updateDoffset(0) # d_offset=0 for normal lane following
@@ -436,18 +457,6 @@ class ParkingNode(DTROS):
         self.updateLaneFilterColor('yellow') # Follow yellow lines (normal)
         self.manualLaneControl('none') # No special turning maneuvers
         self.updateGain(0.7) # Standardized gain
-        if restart:
-            self.restartLaneFollowing() # Switch FSM off and on again
-
-
-    def restartLaneFollowing(self):
-        override = BoolStamped()
-        override.header.stamp = rospy.Time.now()
-        override.data = True # Activate joystick control
-        self.joystick_control_pub.publish(override)
-        rospy.sleep(1) # Allow time for FSM state transition
-        override.data = False # Deactivate joystick --> activate lane following
-        self.joystick_control_pub.publish(override)
 
 
     def manualLaneControl(self, command, duration=None):

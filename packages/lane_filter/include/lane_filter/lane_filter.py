@@ -25,7 +25,6 @@ import copy
 
 import rospy
 
-
 YELLOW = 2
 GREEN = 3
 BLUE = 4
@@ -35,10 +34,11 @@ COLOR_MAPPING = {
     'green': GREEN,
     'blue': BLUE
 }
-
+ 
 
 class LaneFilterHistogram(Configurable, LaneFilterInterface):
     #"""LaneFilterHistogram"""
+
 
     def __init__(self, configuration):
         param_names = [
@@ -70,11 +70,15 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         configuration = copy.deepcopy(configuration)
         Configurable.__init__(self, param_names, configuration)
 
+
+
         self.d, self.phi = np.mgrid[self.d_min:self.d_max:self.delta_d,
                                     self.phi_min:self.phi_max:self.delta_phi]
         self.d_pcolor, self.phi_pcolor = \
             np.mgrid[self.d_min:(self.d_max + self.delta_d):self.delta_d,
                      self.phi_min:(self.phi_max + self.delta_phi):self.delta_phi]
+
+        #rospy.loginfo('self.d_min: %s self.d_max: %s self.delta_d: %s' % (self.d_min, self.d_max, self.delta_d))
 
 
         self.beliefArray = []
@@ -89,8 +93,13 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         self.phi_med_arr = []
         self.median_filter_size = 5
 
+        self.default_delta_d = self.delta_d
+        self.default_delta_phi = self.delta_phi
+
+        self.update_matrix(1) #1 is initial value matrix_mash_size
         self.initialize()
         self.updateRangeArray(self.curvature_res)
+
 
         # Additional variables
         self.red_to_white = False
@@ -118,9 +127,16 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             rospy.loginfo('LaneFilter color changed to %s' % dynamic_color_str)
 
 
+    def update_matrix(self, param_mesh_size):
+
+        self.delta_d = self.default_delta_d * param_mesh_size
+        self.delta_phi = self.default_delta_phi * param_mesh_size
+        self.d, self.phi = np.mgrid[self.d_min:self.d_max:self.delta_d,
+                                    self.phi_min:self.phi_max:self.delta_phi]
+        self.updateRangeArray(self.curvature_res)
+
     def getStatus(self):
         return LaneFilterInterface.GOOD
-
 
     def get_entropy(self):
         belief = self.beliefArray[0]
@@ -130,10 +146,12 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
 
     def predict(self, dt, v, w):
         delta_t = dt
-        d_t = self.d + v * delta_t * np.sin(self.phi)
         phi_t = self.phi + w * delta_t
+        #d_t = self.d + v * delta_t * np.sin(self.phi)                  # forward Euler
+        d_t = self.d + v * delta_t * np.sin(self.phi + 0.5*delta_t*w)   # Runge-Kutta
 
-        for k in range(self.curvature_res):
+
+        for k in range(self.curvature_res+1):
             p_belief = np.zeros(self.beliefArray[k].shape)
 
             # there has got to be a better/cleaner way to do this - just applying the process model to translate each cell value
@@ -189,7 +207,6 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             # we don't care about RED ones for now
             if segment.color != segment.WHITE and segment.color != self.dynamic_color:
                 continue
-
             # filter out any segments that are behind us
             if segment.points[0].x < 0 or segment.points[1].x < 0:
                 continue
@@ -224,12 +241,12 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             for i in range(len(self.range_arr)):
                 self.range_arr[i] = self.range_min + (i * range_diff)
 
-
     # generate the belief arrays
-    def update(self, segments):
+    def update(self, segments, lane_offset):
+        self.center_lane_offset = lane_offset
         # prepare the segments for each belief array
         segmentsRangeArray = self.prepareSegments(segments)
-
+        #rospy.loginfo('segmentsRangeArray: %s' % len(segmentsRangeArray[0]))
         # generate all belief arrays
         for i in range(self.curvature_res + 1):
             measurement_likelihood = self.generate_measurement_likelihood(segmentsRangeArray[i])
@@ -242,11 +259,12 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
                     self.beliefArray[i] = self.beliefArray[i] / np.sum(self.beliefArray[i])
 
 
+
     def generate_measurement_likelihood(self, segments):
+
         # initialize measurement likelihood to all zeros
         measurement_likelihood = np.zeros(self.d.shape)
         filtered_segments = [s for s in segments if not self.shouldIgnoreColor(s.color)]
-
         for segment in filtered_segments:
             d_i, phi_i, l_i, weight =  self.generateVote(segment)
 
@@ -264,7 +282,6 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             np.sum(measurement_likelihood)
         return measurement_likelihood
 
-
     # get the maximal values d_max and phi_max from the belief array. The first belief array (beliefArray[0]) includes the actual belief of the Duckiebots position. The further belief arrays are used for the curvature estimation.
     def getEstimate(self):
         d_max = np.zeros(self.curvature_res + 1)
@@ -276,14 +293,12 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             phi_max[i] = self.phi_min + (maxids[1] + 0.5) * self.delta_phi
         return [d_max, phi_max]
 
-
     def get_estimate(self):
         d, phi = self.getEstimate()
         res = OrderedDict()
         res['d'] = d[0]
         res['phi'] = phi[0]
         return res
-
 
     # get the curvature estimation
     def getCurvature(self, d_max, phi_max):
@@ -309,7 +324,6 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             print "Curvature estimation: straight lane"
             return 0
 
-
     # return the maximal value of the beliefArray
     def getMax(self):
         return self.beliefArray[0].max()
@@ -324,22 +338,8 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         for i in range(self.curvature_res + 1):
             self.beliefArray[i] = RV.pdf(pos)
 
-
     # generate a vote for one segment
     def generateVote(self, segment):
-        color = segment.color
-        if False:
-            if color == segment.WHITE:
-                rospy.loginfo('WHITE segment')
-            elif color == segment.YELLOW:
-                rospy.loginfo('YELLOW segment')
-            elif color == segment.RED:
-                rospy.loginfo('RED segment')
-            elif color == GREEN:
-                rospy.loginfo('GREEN segment')
-            elif color == BLUE:
-                rospy.loginfo('BLUE segment')
-
         p1 = np.array([segment.points[0].x, segment.points[0].y])
         p2 = np.array([segment.points[1].x, segment.points[1].y])
         t_hat = (p2 - p1) / np.linalg.norm(p2 - p1)
@@ -357,15 +357,14 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         l_i = (l1 + l2) / 2
         d_i = (d1 + d2) / 2
         phi_i = np.arcsin(t_hat[1])
+
         if segment.color == segment.WHITE:  # right lane is white
             if(p1[0] > p2[0]):  # right edge of white lane
                 d_i = d_i - self.linewidth_white
             else:  # left edge of white lane
-
                 d_i = - d_i
-
                 phi_i = -phi_i
-            d_i = d_i - self.lanewidth / 2
+            d_i = d_i - self.lanewidth
 
         elif segment.color == self.dynamic_color:
             if (p2[0] > p1[0]):  # left edge of lane
@@ -373,30 +372,30 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
                 phi_i = -phi_i
             else:  # right edge of white lane
                 d_i = -d_i
-            d_i = self.lanewidth / 2 - d_i
+            d_i = - d_i
 
         # weight = distance
         weight = 1
-        return d_i, phi_i, l_i, weight
 
+        #english driver parameter
+        d_i += self.center_lane_offset
+
+        return d_i, phi_i, l_i, weight
 
     def get_inlier_segments(self, segments, d_max, phi_max):
         inlier_segments = []
         filtered_segments = [s for s in segments if not self.shouldIgnoreColor(s.color)]
-
         for segment in filtered_segments:
             d_s, phi_s, l, w = self.generateVote(segment)
             if abs(d_s - d_max) < self.delta_d and abs(phi_s - phi_max)<self.delta_phi:
                 inlier_segments.append(segment)
         return inlier_segments
 
-
     # get the distance from the center of the Duckiebot to the center point of a segment
     def getSegmentDistance(self, segment):
         x_c = (segment.points[0].x + segment.points[1].x) / 2
         y_c = (segment.points[0].y + segment.points[1].y) / 2
         return sqrt(x_c**2 + y_c**2)
-
 
     def get_plot_phi_d(self, ground_truth=None):  # @UnusedVariable
         d, phi = self.getEstimate()

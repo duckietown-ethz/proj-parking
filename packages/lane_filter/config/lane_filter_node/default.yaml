@@ -2,6 +2,10 @@
 
 #propagation
 use_propagation: True
+matrix_mesh_size: 1.2
+#matrix_delta_d: 0.02
+#matrix_delta_phi: 0.1
+lane_offset: 0.115
 
 filter:
   - lane_filter.LaneFilterHistogram
@@ -10,8 +14,8 @@ filter:
       mean_phi_0: 0
       sigma_d_0: 0.1
       sigma_phi_0: 0.1
-      delta_d: 0.02
-      delta_phi: 0.1
+      delta_d: 0.02 #the parameter that will be updated instead is matrix_delta_d
+      delta_phi: 0.1 #the parameter that will be updated instead is matrix_delta_phi
       d_max: 0.3
       d_min: -0.15
       phi_min: -1.5

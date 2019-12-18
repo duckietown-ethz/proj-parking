@@ -9,6 +9,7 @@ import rospy
 from duckietown_utils import load_camera_intrinsics
 from duckietown_msgs.msg import BoolStamped
 from sensor_msgs.msg import CompressedImage, Image
+from std_msgs.msg import Float64
 
 WIDTH = 320
 HEIGHT = 240
@@ -74,9 +75,9 @@ class LEDDetectionNode(object):
 
     def bottomOfImage(self, full_image):
         if self.look_right:
-            return full_image[HEIGHT//2-40:HEIGHT//2+30, WIDTH//2:WIDTH-10]
+            return full_image[HEIGHT//2-40:HEIGHT//2+30, WIDTH//2:WIDTH]
         else:
-            return full_image[HEIGHT//2-40:HEIGHT//2+15,10:WIDTH//2]
+            return full_image[HEIGHT//2-40:HEIGHT//2+15,:WIDTH//2]
 
 
     def setupParam(self, param_name, default_value):
@@ -153,11 +154,11 @@ class LEDDetectionNode(object):
         now = rospy.Time.now()
 
         cv_image_color = cv_image_color[cv_image_color.shape[0]/4:cv_image_color.shape[0]/4*3]
-
+        cv_image_hsv = cv2.cvtColor(cv_image_color, cv2.COLOR_BGR2HSV)
         cv_image1 = cv2.cvtColor(cv_image_color, cv2.COLOR_BGR2GRAY)
         #cv_image1 = cv_image1[cv_image1.shape[0]/4:cv_image1.shape[0]/4*3]
 
-        ret, cv_image = cv2.threshold(cv_image1, 220, 255, cv2.THRESH_BINARY)
+        ret, cv_image = cv2.threshold(cv_image1, 231, 255, cv2.THRESH_BINARY)
 
         # Set up the detector with default parameters.
         params = cv2.SimpleBlobDetector_Params()
@@ -169,11 +170,11 @@ class LEDDetectionNode(object):
 
         # Filter by Area
         params.filterByArea = True
-        params.minArea = 10
+        params.minArea = 1
         params.filterByInertia = False
         params.filterByConvexity = False
         params.filterByCircularity = True
-        params.minCircularity = 0.9
+        params.minCircularity = 0.3
         detector = cv2.SimpleBlobDetector_create(params)
 
         # Detect blobs.
@@ -187,37 +188,14 @@ class LEDDetectionNode(object):
         x1d = x2d = y1d = y2d = 0
         x1b = x2b = y1b = y2b = 0
         x1db = x2db = y1db = y2db = 0
-        redfound = 0
-        whitefound = 0
+        redfound = len(keypoints_un) > 0
 
-        for i,key1 in enumerate(keypoints_un):
-            pixel1 = cv_image_color[int(keypoints[i].pt[1]), int(keypoints[i].pt[0])]
+        msg = BoolStamped()
+        msg.header.stamp = rospy.Time.now()
+        msg.data = redfound
+        self.red_pub.publish(msg)
 
-            blue1 = pixel1[0]
-            bluethreshold = 240
-            # Check if the blue value of the led light is matching the red back or the white front
-            if (blue1 < bluethreshold): # red
-                redfound = 1
-            if  (blue1 >= bluethreshold): #white
-                whitefound = 1
-
-        if redfound == 1:
-            msg = BoolStamped()
-            msg.header.stamp = rospy.Time.now()
-            msg.data = True
-            self.red_pub.publish(msg)
-
-        else:
-            msg = BoolStamped()
-            msg.header.stamp = rospy.Time.now()
-            msg.data = False
-            self.red_pub.publish(msg)
-
-        if self.publish_circles and whitefound == 0:
-            # cv2.drawChessboardCorners(image_cv,
-            #                             self.circlepattern_dims, corners, detection)
-                    # Draw detected blobs as red circles.
-        # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
+        if self.publish_circles:
             cv_image = cv2.drawKeypoints(cv_image, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             cv_image1 = cv2.drawKeypoints(cv_image, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 

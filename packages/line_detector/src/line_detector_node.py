@@ -29,7 +29,7 @@ class LineDetectorNode(object):
         self.stats = Stats()
 
         # Only be verbose every 10 cycles
-        self.intermittent_interval = 10000
+        self.intermittent_interval = 100
         self.intermittent_counter = 0
 
         # these will be added if it becomes verbose
@@ -105,6 +105,8 @@ class LineDetectorNode(object):
         if self.verbose and self.pub_edge is None:
             self.pub_edge = rospy.Publisher("~edge", Image, queue_size=1)
             self.pub_colorSegment = rospy.Publisher("~colorSegment", Image, queue_size=1)
+        
+        self.segment_max_threshold = rospy.get_param('~segment_max_threshold')
 
 
     def cbSwitch(self, switch_msg):
@@ -126,7 +128,7 @@ class LineDetectorNode(object):
 
         if not self.active:
             return
-
+        
         try:
             self.processImage_(image_msg)
         finally:
@@ -169,14 +171,13 @@ class LineDetectorNode(object):
 
         # Detect lines and normals
 
-        white = self.detector_used.detectLines('white')
-        yellow = self.detector_used.detectLines('yellow')
-        red = self.detector_used.detectLines('red')
-        #added for parking viciopoli01
-        blue = self.detector_used.detectLines('blue')
+        white = self.detector_used.detectLines('white', self.segment_max_threshold)
+        yellow = self.detector_used.detectLines('yellow', self.segment_max_threshold)
+        red = self.detector_used.detectLines('red', self.segment_max_threshold)
+        blue = self.detector_used.detectLines('blue', self.segment_max_threshold)
 
         tk.completed('detected')
-
+        
         # SegmentList constructor
         segmentList = SegmentList()
         segmentList.header.stamp = image_msg.header.stamp
@@ -187,24 +188,22 @@ class LineDetectorNode(object):
         if len(white.lines) > 0:
             lines_normalized_white = ((white.lines + arr_cutoff) * arr_ratio)
             segmentList.segments.extend(self.toSegmentMsg(lines_normalized_white, white.normals, Segment.WHITE))
-            #print("THIS IS WHAT THEY MEAN FOR COLOR : "+str(Segment.WHITE))
         if len(yellow.lines) > 0:
             lines_normalized_yellow = ((yellow.lines + arr_cutoff) * arr_ratio)
             segmentList.segments.extend(self.toSegmentMsg(lines_normalized_yellow, yellow.normals, Segment.YELLOW))
         if len(red.lines) > 0:
             lines_normalized_red = ((red.lines + arr_cutoff) * arr_ratio)
             segmentList.segments.extend(self.toSegmentMsg(lines_normalized_red, red.normals, Segment.RED))
-        #added for parking viciopoli01
         if len(blue.lines) > 0:
             lines_normalized_blue = ((blue.lines + arr_cutoff) * arr_ratio)
             segmentList.segments.extend(self.toSegmentMsg(lines_normalized_blue, blue.normals, 4))
-
         self.intermittent_log('# segments: white %3d yellow %3d red %3d blue %3d' % (len(white.lines),
                 len(yellow.lines), len(red.lines), len(blue.lines)))
 
         tk.completed('prepared')
 
         # Publish segmentList
+        
         self.pub_lines.publish(segmentList)
         tk.completed('--pub_lines--')
 
@@ -231,7 +230,6 @@ class LineDetectorNode(object):
             tk.completed('pub_image')
 
 #         if self.verbose:
-
             colorSegment = color_segment(white.area, red.area, yellow.area, blue.area)
             edge_msg_out = self.bridge.cv2_to_imgmsg(self.detector_used.edges, "mono8")
             colorSegment_msg_out = self.bridge.cv2_to_imgmsg(colorSegment, "bgr8")
