@@ -25,6 +25,9 @@ import copy
 
 import rospy
 
+# The `Segment` object in duckietown_msgs
+# should be extended to include GREEN (3) and BLUE (4)
+# but until then, we use these hard-coded values
 YELLOW = 2
 GREEN = 3
 BLUE = 4
@@ -78,8 +81,6 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
             np.mgrid[self.d_min:(self.d_max + self.delta_d):self.delta_d,
                      self.phi_min:(self.phi_max + self.delta_phi):self.delta_phi]
 
-        #rospy.loginfo('self.d_min: %s self.d_max: %s self.delta_d: %s' % (self.d_min, self.d_max, self.delta_d))
-
 
         self.beliefArray = []
         self.range_arr = np.zeros(self.curvature_res + 1)
@@ -107,6 +108,8 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         self.range_est_min = 0
         self.filtered_segments = []
 
+        # The dynamic color can be used to change which color
+        # the Duckiebot observes during lane following, instead of yellow
         self.dynamic_color = YELLOW
         self.dynamic_color_sub = rospy.Subscriber(
             '/parking/lane_color',
@@ -147,7 +150,6 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
     def predict(self, dt, v, w):
         delta_t = dt
         phi_t = self.phi + w * delta_t
-        #d_t = self.d + v * delta_t * np.sin(self.phi)                  # forward Euler
         d_t = self.d + v * delta_t * np.sin(self.phi + 0.5*delta_t*w)   # Runge-Kutta
 
 
@@ -178,6 +180,11 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
 
 
     def shouldIgnoreColor(self, color):
+        # If the color is non-standard (i.e. not yellow)
+        # we assume there are white lines running parallel to the
+        # colored line, so we ignore all colors except for the
+        # dynamic color in this case.
+
         if self.is_dynamic == False:
             return False
 
@@ -246,7 +253,6 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
         self.center_lane_offset = lane_offset
         # prepare the segments for each belief array
         segmentsRangeArray = self.prepareSegments(segments)
-        #rospy.loginfo('segmentsRangeArray: %s' % len(segmentsRangeArray[0]))
         # generate all belief arrays
         for i in range(self.curvature_res + 1):
             measurement_likelihood = self.generate_measurement_likelihood(segmentsRangeArray[i])

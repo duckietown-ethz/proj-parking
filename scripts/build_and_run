@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This script will build and then run the entire parking project
+
+# Replace with your own Duckiebot's name!
 export BOTNAME=manipanpan
 
 docker -H "$BOTNAME".local build -t proj-parking:v1 .

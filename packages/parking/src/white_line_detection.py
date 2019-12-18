@@ -1,4 +1,14 @@
 #!/usr/bin/env python
+
+"""
+This node looks in the bottom of the image for
+the color white and publishes a Boolean value
+if it detects an amount of white above a certain threshold.
+----------
+It is used by parking as a trigger that the Duckiebot
+can stop the parking maneuver when it approaches a white line.
+"""
+
 import rospy
 import cv2
 import os
@@ -9,18 +19,14 @@ from sensor_msgs.msg import CompressedImage, Image
 from duckietown_msgs.msg import BoolStamped
 from duckietown import DTROS
 
-WIDTH = 320
-HEIGHT = 240
+WIDTH = 320 # Width of the image
+HEIGHT = 240 # Height of the image
+
+# Cropping bounds for cropping images and detecting white lines
+CROP = (HEIGHT-10, HEIGHT, 0, WIDTH//2+50)
+
 
 class WhiteLineDetectorNode(DTROS):
-    """
-        This node looks in the bottom of the image for
-        the color white and publishes a Boolean value
-        if it detects an amount of white above a certain threshold.
-        ----------
-        It is used by parking as a trigger that the Duckiebot
-        can stop the parking maneuver when it approaches a white line.
-    """
 
     def __init__(self, node_name):
         # Initialize the DTROS parent class
@@ -56,7 +62,7 @@ class WhiteLineDetectorNode(DTROS):
 
 
     def croppedImage(self, full_image):
-        return full_image[HEIGHT-10:, :WIDTH//2+50]
+        return full_image[CROP[0]:CROP[1], CROP[2]:CROP[3]]
 
 
     def detectColor(self, data):
