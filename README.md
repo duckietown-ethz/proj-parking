@@ -1,16 +1,9 @@
-<style>
-    img[src*="res"] { 
-        width:  50%; 
-        height:  50%; 
-    }
-</style>
-
 
 # `proj-parking`
 
 # Setup specifications
 
-Building the Parking Area requries the same [design and environment specifications](duckietown_layout_specs) of building Duckietown itself.
+Building the Parking Area requries the same [design and environment specifications][duckietown_layout_specs] of building Duckietown itself.
 The difference respect to the city layout is that you can add parking spots. To do that you have to use the Parking Spot tile, with the design requirements specified in the image below.
 
 ![parking spot tile specifics][spot_spec_tile] 1. Parking spot tile
@@ -27,13 +20,13 @@ Before starting describing the precedure to run the demo, you have to check the 
 
 * Be sure that dt-core, dt-car-interface, dt-duckiebot-interface, dt-ros-commons images are updated. If not pull them:
 
-    `docker -H` _`$BOTNAME`_`.local pull duckietown/dt-core:daffy-arm32v7`
+    `docker -H $BOTNAME.local pull duckietown/dt-core:daffy-arm32v7`
 
-    `docker -H` _`$BOTNAME`_`.local pull duckietown/dt-car-interface:daffy-arm32v7`
+    `docker -H $BOTNAME .local pull duckietown/dt-car-interface:daffy-arm32v7`
 
-    `docker -H` _`$BOTNAME`_`.local pull duckietown/dt-duckiebot-interface:daffy-arm32v7`
+    `docker -H $BOTNAME.local pull duckietown/dt-duckiebot-interface:daffy-arm32v7`
 
-    `docker -H` _`$BOTNAME`_`.local pull duckietown/dt-ros-commons:daffy-arm32v7`
+    `docker -H $BOTNAME.local pull duckietown/dt-ros-commons:daffy-arm32v7`
 
 If all the images are updated you can start following the following steps:
 
@@ -41,22 +34,22 @@ If all the images are updated you can start following the following steps:
 
 2. Start all the drivers in dt-duckiebot-interface:
 
-    `dts duckiebot demo --demo_name all_drivers --duckiebot_name` _`$BOTNAME`_ `--package_name duckiebot_interface --image duckietown/dt-duckiebot-interface:daffy`
+    `dts duckiebot demo --demo_name all_drivers --duckiebot_name $BOTNAME --package_name duckiebot_interface --image duckietown/dt-duckiebot-interface:daffy`
     
     and the glue nodes that handle the joystick mapping and the kinematics:
 
-    `dts duckiebot demo --demo_name all --duckiebot_name ` _`$BOTNAME`_ `--package_name car_interface --image duckietown/dt-car-interface:daffy`
+    `dts duckiebot demo --demo_name all --duckiebot_name $BOTNAME --package_name car_interface --image duckietown/dt-car-interface:daffy`
 
 3. Be sure that the step 2 worked, then you can **build** the docker container as follows:
-    `docker -H ` _`$BOTNAME`_`.local build --no-cache -t proj-parking:BRANCH_NAME .`
+    `docker -H $BOTNAME.local build --no-cache -t proj-parking:BRANCH_NAME .`
 
 4. After that if there where no errors, you can **run** the parking demo:
 
-    `docker -H ` _`$BOTNAME`_`.local run -it --rm -v /data:/data --privileged --network=host proj-parking:BRANCH_NAME`
+    `docker -H $BOTNAME.local run -it --rm -v /data:/data --privileged --network=host proj-parking:BRANCH_NAME`
 
 5. Start the Joystic and press `a` to start the demo:
 
-    `dts duckiebot keyboard_control` _`$BOTNAME`_
+    `dts duckiebot keyboard_control $BOTNAME`
 
 
 :warning: Make sure to change _`$BOTNAME`_ and _`$BRANCH_NAME`_ with your Duckiebot hostname and the branch you are in respectively.
