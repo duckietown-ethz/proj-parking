@@ -1,5 +1,10 @@
 
-# `proj-parking`
+# Parking Area
+
+<div figure-id="fig:header">
+     <img src="media/parking-gift.gif" />
+</div>
+
 
 # Setup specifications
 
