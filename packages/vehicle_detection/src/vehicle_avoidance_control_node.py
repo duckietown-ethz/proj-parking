@@ -16,7 +16,7 @@ class VehicleAvoidanceControlNode(object):
 		self.config	= self.setupParam("~config", "baseline")
 		self.cali_file_name = self.setupParam("~cali_file_name", "default")
 		self.cali_file = "/code/catkin_ws/src/dt-core/packages/vehicle_detection/config/vehicle_avoidance_control_node/" +  \
-				self.cali_file_name + ".yaml"
+			self.cali_file_name + ".yaml"
 		if not os.path.isfile(self.cali_file):
 			rospy.logwarn("[%s] Can't find calibration file: %s.\n"
 					% (self.node_name, self.cali_file))
@@ -203,7 +203,7 @@ class VehicleAvoidanceControlNode(object):
 
 # 	def publishCmd(self,stamp):
 # 		cmd_msg = Twist2DStamped()
-#				 cmd_msg.header.stamp = stamp
+#		cmd_msg.header.stamp = stamp
 # 		cmd_msg.v = 0.0
 # 		cmd_msg.omega = 0.0
 # 		self.car_cmd_pub.publish(cmd_msg)
