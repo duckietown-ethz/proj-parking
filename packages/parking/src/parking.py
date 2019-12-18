@@ -79,7 +79,7 @@ class ParkingNode(DTROS):
         
         # Publisher to deactivate the parking FSM mode
         self.stop_parking_fsm_mode = rospy.Publisher(
-            '/%s/parking_off',
+            '/%s/parking_off' % self.veh_name,
             BoolStamped,
             queue_size=1
         )
