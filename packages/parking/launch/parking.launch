@@ -1,0 +1,11 @@
+<launch>
+  <include file="$(find parking)/launch/indefinite_navigation.launch"/>
+
+  <group ns="$(arg veh)">
+    <node pkg="parking" type="parking.py" name="parking_node" output="screen"/>
+    <node pkg="parking" type="free_parking_detection.py" name="parking_free" output="screen"/>
+    <node pkg="parking" type="white_line_detection.py" name="white_line_detector" output="screen"/>
+    <node pkg="parking" type="red_line_detection.py" name="red_line_detector" output="screen"/>
+    <node pkg="parking" type="led_detection.py" name="led_detector" output="screen"/>
+  </group>
+</launch>

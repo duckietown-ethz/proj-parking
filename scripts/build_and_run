@@ -1,0 +1,7 @@
+#!/bin/bash
+
+export BOTNAME=manipanpan
+
+docker -H "$BOTNAME".local build -t proj-parking:v1 .
+
+docker -H "$BOTNAME".local run -it --rm -v /data:/data --privileged --network=host proj-parking:v1
