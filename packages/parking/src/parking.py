@@ -3,6 +3,8 @@
 import os
 import rospy
 import time
+import random
+
 from duckietown import DTROS
 from std_msgs.msg import String, Float64
 from duckietown_msgs.msg import BoolStamped, LEDPattern
@@ -52,6 +54,8 @@ class ParkingNode(DTROS):
         self.at_red_line = False
         self.blob_detected = False
         self.ignore_red_lines = False
+        self.timeSlotExiting = 20 # time needed to do the maneuver
+        self.timeSlotSearching = 5 # time needed to do the maneuver
 
         # Services
         self.set_custom_led_pattern = rospy.ServiceProxy(
@@ -130,6 +134,15 @@ class ParkingNode(DTROS):
             self.cbRestart,
             queue_size=1
         )
+        
+        # when this subscriber receives `True` and the Duckiebot is
+        # parked, the Duckiebot will exit the parking spot
+        self.exit_parking_spot_sub = rospy.Subscriber(
+            '~/%s/parking/time_exiting_parking_spot' % self.veh_name,
+            BoolStamped,
+            self.cbLeaveParkingSpot,
+            queue_size=1
+        )
 
         self.log('Initialized.')
 
@@ -138,6 +151,11 @@ class ParkingNode(DTROS):
     ######### CALLBACKS #########
     #############################
     """
+
+    def cbLeaveParkingSpot(self,msg):
+        if msg.data and self.state == IS_PARKED:
+            self.transitionToNextState()
+
 
     def cbRestart(self, msg):
         if msg.data:
@@ -277,7 +295,7 @@ class ParkingNode(DTROS):
 
         self.log('Detected Duckiebot with red LEDs (no intersection)!')
         self.setLEDs('red') # Set LEDs to indicate we saw a Duckie that wants to exit
-        self.pauseOperations(10) # Pause for some time till danger is gone
+        self.waitForRandomTime()
         self.setLEDs('switchedoff') # Set LEDs off while lane following
 
     """
@@ -322,10 +340,10 @@ class ParkingNode(DTROS):
         elif next_state == IS_PARKED:
             self.log('IS_PARKED')
             self.setLEDs('switchedoff') # Turn off LEDs while parked
-            self.pauseOperations(5) # Stay in the parking spot a certain time
-            self.transitionToNextState() # Start exiting the parking spot
+            self.manualLaneControl('stop')
 
         elif next_state == EXITING_PARKING_SPOT:
+            self.waitForRandomTime('exiting')
             self.log('EXITING_PARKING_SPOT')
             self.manualLaneControl('stop') # Force lane controller to stop
             self.setLEDs('red') # Set LEDs to indicate leaving parking
@@ -340,6 +358,31 @@ class ParkingNode(DTROS):
             # Look on the left for Duckiebots backing out of parking spots
             self.toggleLEDDetection(led_detection_right=False)
             self.startNormalLaneFollowing() # Resume normal lane following
+
+    
+    def waitingForRandomTime(self, wait_type='searching'):
+        """
+        Divide the maneuver time in slots of 20 seconds
+        so a duckiebot has to wait a random number of slots before efforting the maneuver.
+        The duckiebot that is going around the parking area searching for parking, stops only if it knows that
+        the one who want to exit can do the maneuver in the next 5 sec (time needed for the maneuver).
+        """        
+        secs = time.localtime().tm_sec
+        slot = secs // self.timeSlotExiting
+        delta = (slot + 1) * self.timeSlotExiting - secs
+        rospy.log('Waiting a random time')
+        if wait_type == 'exiting':
+            wait = random.randrange(1, 4) * self.timeSlotExiting + delta
+            rospy.log('[%s] wait before exiting', self.node_name)
+            self.pauseOperations(wait)
+        else:
+            slot_search = delta // self.timeSlotSearching
+            # stop only if it is in the first or in thte last time slot, because the car can go out
+            if slot_search == 0 or slot_search == 3:
+                self.pauseOperations(self.timeSlotSearching)
+                rospy.log('[%s] wait before going straight', self.node_name)
+            else:
+                rospy.log('[%s] can go straight', self.node_name)
 
 
     def pauseOperations(self, num_sec):
