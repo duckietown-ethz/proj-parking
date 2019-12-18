@@ -181,9 +181,8 @@ class LaneFilterHistogram(Configurable, LaneFilterInterface):
 
     def shouldIgnoreColor(self, color):
         # If the color is non-standard (i.e. not yellow)
-        # we assume there are white lines running parallel to the
-        # colored line, so we ignore all colors except for the
-        # dynamic color in this case.
+        # we assume there are NOT white lines running parallel to the
+        # colored line, and we ignore all colors except for the dynamic color
 
         if self.is_dynamic == False:
             return False
