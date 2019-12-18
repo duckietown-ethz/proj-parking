@@ -43,7 +43,7 @@ class LineDetector2Dense(dtu.Configurable, LineDetectorInterface):
             bw1 = cv2.inRange(self.hsv, self.hsv_red1, self.hsv_red2)
             bw2 = cv2.inRange(self.hsv, self.hsv_red3, self.hsv_red4)
             bw = cv2.bitwise_or(bw1, bw2)
-        elif color == 'green': #Added for parking project viciopoli01
+        elif color == 'green':
             bw = cv2.inRange(self.hsv, self.hsv_green1, self.hsv_green2)
         elif color == 'blue':
             bw = cv2.inRange(self.hsv, self.hsv_blue1, self.hsv_blue2)

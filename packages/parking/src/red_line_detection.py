@@ -1,4 +1,12 @@
 #!/usr/bin/env python
+
+"""
+This node detects the color red at the bottom of an image,
+and publishes a boolean `True` if enough red is seen, otherwise
+it publishes False. It is used by parking to determine if the
+Duckiebot is at an intersection within the parking area.
+"""
+
 import rospy
 import cv2
 import os
@@ -10,14 +18,14 @@ from duckietown_msgs.msg import BoolStamped
 
 from duckietown import DTROS
 
-WIDTH = 320
-HEIGHT = 240
+WIDTH = 320 # Width of the image
+HEIGHT = 240 # Height of the image
+# Cropping bounds for cropping images and detecting red lines
+CROP = (HEIGHT-5, HEIGHT, WIDTH//2-50, WIDTH//2+50)
+
 
 class RedLine(DTROS):
-    """
-        This node detects the color red at the bottom of an image,
-        and publishes a boolean `True` if enough red is seen.
-    """
+
     def __init__(self, node_name):
         # Initialize the DTROS parent class
         super(RedLine, self).__init__(node_name=node_name)
@@ -54,7 +62,7 @@ class RedLine(DTROS):
 
 
     def croppedImage(self, full_image):
-        return full_image[HEIGHT-5:, WIDTH//2-50:WIDTH//2+50]
+        return full_image[CROP[0]:CROP[1], CROP[2]:CROP[3]]
 
 
     def detectColor(self, data):
@@ -90,7 +98,6 @@ class RedLine(DTROS):
             cv_image = self.bridge.compressed_imgmsg_to_cv2(msg_image)
             return cv_image
         except CvBridgeError as e:
-            # print(e)
             return []
 
 

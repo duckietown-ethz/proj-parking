@@ -22,6 +22,8 @@ def vs_fancy_display(bgr, segment_list, width=2):
     return ground
     
 def draw_segment_list_on_image(bgr, segment_list, width):
+    # The `Segment` object should be updated to include GREEN and BLUE,
+    # but until then, we hard-code it with the values 3 and 4
     colors2bgr = {Segment.WHITE: dtu.ColorConstants.BGR_WHITE,
               Segment.RED: dtu.ColorConstants.BGR_RED,
               Segment.YELLOW: dtu.ColorConstants.BGR_YELLOW,

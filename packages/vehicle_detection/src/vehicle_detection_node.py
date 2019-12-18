@@ -30,10 +30,6 @@ class VehicleDetectionNode(object):
         rospack = rospkg.RosPack()
         self.cali_file = "/code/catkin_ws/src/dt-core/packages/vehicle_detection/config/vehicle_detection_node/" +  \
             self.cali_file_name + ".yaml"
-        # self.cali_file = rospack.get_path('duckietown') + \
-        #     "/config/" + self.config + \
-        #     "/vehicle_detection/vehicle_detection_node/" +  \
-        #     self.cali_file_name + ".yaml"
         if not os.path.isfile(self.cali_file):
             rospy.logwarn("[%s] Can't find calibration file: %s.\n"
                           % (self.node_name, self.cali_file))
