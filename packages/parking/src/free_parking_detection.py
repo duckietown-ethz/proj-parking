@@ -1,4 +1,12 @@
 #!/usr/bin/env python
+
+"""
+This node is used by parking to detect a free parking spot.
+It works by checking the lower-left corner of the image
+for green pixels, and if enough green pixels are seen, it
+publishes a message `True` (otherwise publishes `False`).
+"""
+
 import rospy
 import cv2
 import os
@@ -9,17 +17,21 @@ from sensor_msgs.msg import CompressedImage
 from duckietown_msgs.msg import BoolStamped
 from duckietown import DTROS
 
-WIDTH = 320
-HEIGHT = 240
+WIDTH = 320 # Width of the image
+HEIGHT = 240 # Height of the image
+
+# Require to see more green when exiting parking spot
+EXITING_THRESHOLD = 400
+# Less green needed when searching for parking spot
+SEARCHING_THRESHOLD = 115
+
+# Cropping bounds for cropping images and performing parking spot detection
+EXITING_CROP    =    (130,  HEIGHT-30,  0,  WIDTH)
+SEARCHING_CROP  =    (160,  HEIGHT,     0,  120)
 
 
 class FreeParking(DTROS):
-    """
-        This node is used by parking to detect a free parking spot.
-        It works by checking the lower-left corner of the image
-        for green pixels, and if enough green pixels are seen, it
-        publishes a message `True` (otherwise publishes `False`).
-    """
+
     def __init__(self, node_name):
         # Initialize the DTROS parent class
         super(FreeParking, self).__init__(node_name=node_name)
@@ -70,19 +82,12 @@ class FreeParking(DTROS):
         tup = (self.node_name, is_reversing)
         rospy.loginfo('[%s] Reverse = %s' % tup)
         self.is_reversing = is_reversing
-        if is_reversing:
-            # Require to see more green when exiting parking spot
-            self.detection_threshold = 400
-        else:
-            # Less green needed when searching for parking spot
-            self.detection_threshold = 115
+        self.detection_threshold = EXITING_THRESHOLD if is_reversing else SEARCHING_THRESHOLD
 
 
     def croppedImage(self, full_image):
-        if self.is_reversing:
-            return full_image[130:HEIGHT-30, :]
-        else:
-            return full_image[160:, :120]
+        crop = EXITING_CROP if self.is_reversing else SEARCHING_CROP
+        return full_image[crop[0]:crop[1], crop[2]:crop[3]]
 
 
     def detectColor(self, data):

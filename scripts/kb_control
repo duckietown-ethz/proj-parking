@@ -1,5 +1,8 @@
 #!/bin/bash
 
-export BOTNAME=cristina
+# This script launches the joystick control GUI
+
+# Replace with your own Duckiebot's name!
+export BOTNAME=manipanpan
 
 dts duckiebot keyboard_control $BOTNAME

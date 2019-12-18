@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+"""
+The parking node is the main control point for parking.
+It runs simultaneously with lane following and has an
+internal state which is used to configure other nodes
+(e.g. lane controller and line filter) in various ways,
+depending on what the Duckiebot is doing in the parking area.
+"""
+
 import os
 import rospy
 import time
@@ -50,97 +58,114 @@ class ParkingNode(DTROS):
 
         self.veh_name = rospy.get_namespace().strip("/")
         self.node_name = rospy.get_name()
-        self.state = INACTIVE
+        self.state = INACTIVE # Initially, the node is inactive
         self.at_red_line = False
         self.blob_detected = False
         self.ignore_red_lines = False
-        self.timeSlotExiting = 20 # time needed to do the maneuver
-        self.timeSlotSearching = 5 # time needed to do the maneuver
+        # Time slots for parked Duckiebots
+        self.time_slot_exiting = 20
+        # Time slots for Duckiebots searching for parking
+        self.time_slot_searching = 5
 
-        # Services
+        ###### Services ######
+        
+        # Service to change LEDs to a custom pattern
         self.set_custom_led_pattern = rospy.ServiceProxy(
             '/%s/led_emitter_node/set_custom_pattern' % self.veh_name,
             SetCustomLEDPattern
         )
 
-        # Publishers
+        ###### Publishers ######
+        
+        # Publisher to deactivate the parking FSM mode
         self.stop_parking_fsm_mode = rospy.Publisher(
             '/%s/parking_off' % self.veh_name,
             BoolStamped,
             queue_size=1
         )
+        # Dynamically change the d_offset of lane control
         self.d_offset_pub = rospy.Publisher(
             'lane_controller_node/doffset',
             Float64,
             queue_size=1
         )
+        # Dynamically change the color for the lane filter
         self.lane_filter_color_pub = rospy.Publisher(
             '/parking/lane_color',
             String,
             queue_size=1
         )
+        # Pause the lane controller
         self.pause_lane_control_pub = rospy.Publisher(
             'lane_controller_node/pause',
             Float64,
             queue_size=1
         )
+        # Override the lane controller with a manual movement
         self.lane_control_override_pub = rospy.Publisher(
             '~/%s/parking/lane_control_override' % self.veh_name,
             String,
             queue_size=1
         )
+        # Make the lane controller go backwards if True, else forwards
         self.reverse_pub = rospy.Publisher(
             '~/%s/parking/reverse' % self.veh_name,
             BoolStamped,
             queue_size=1
         )
+        # Publish True if we should detect LEDs on the right-half of the
+        # image, otherwise use the left-half of the image if False
         self.led_detection_right_pub = rospy.Publisher(
             '~/%s/parking/led_detection_right' % self.veh_name,
             BoolStamped,
             queue_size=1
         )
 
-        # Subscribers
+        ###### Subscribers ######
+        
+        # Subscriber to FSM switch (activate or deactivate the node)
         self.switch_sub = rospy.Subscriber(
             '~switch',
             BoolStamped,
             self.cbSwitch,
             queue_size=1
         )
+        # Returns True if the Duckiebot detected a parking spot
         self.parking_spot_detection_sub = rospy.Subscriber(
             '/%s/parking/free_parking' % self.veh_name,
             BoolStamped,
             self.cbParkingSpotDetected,
             queue_size=1
         )
+        # Returns True if the Duckiebot should stop parking maneuver
         self.stop_parking_sub = rospy.Subscriber(
             '/%s/parking/white_line' % self.veh_name,
             BoolStamped,
             self.cbStopParking,
             queue_size=1
         )
+        # Returns True when a red line is detected, False otherwise
         self.red_line_sub = rospy.Subscriber(
             '/%s/red_line' % self.veh_name,
             BoolStamped,
             self.cbRedLine,
             queue_size=1
         )
+        # Returns True when a red LED is detected, False otherwise
         self.red_led_sub = rospy.Subscriber(
             '/%s/parking/red_led' % self.veh_name,
             BoolStamped,
             self.cbRedLED,
             queue_size=1
         )
-
-        # start again without re-running
+        # Start again without re-running
         self.restart_sub = rospy.Subscriber(
             '/%s/parking/start_from' % self.veh_name,
             BoolStamped,
             self.cbRestart,
             queue_size=1
         )
-        
-        # when this subscriber receives `True` and the Duckiebot is
+        # When this subscriber receives `True` and the Duckiebot is
         # parked, the Duckiebot will exit the parking spot
         self.exit_parking_spot_sub = rospy.Subscriber(
             '~/%s/parking/time_exiting_parking_spot' % self.veh_name,
@@ -157,12 +182,16 @@ class ParkingNode(DTROS):
     #############################
     """
 
-    def cbLeaveParkingSpot(self,msg):
+    def cbLeaveParkingSpot(self, msg):
+        # When the Duckiebot is parked and you want it to exit,
+        # you can send `True` to exit_parking_spot_sub and the
+        # Duckiebot will shortly thereafter exit the parking spot
         if msg.data and self.state == IS_PARKED:
             self.transitionToNextState()
 
 
     def cbRestart(self, msg):
+        # Useful for debugging: this enables us to reset the state
         if msg.data:
             self.log('Resetting state to ENTERING_PARKING_LOT')
             self.state = INACTIVE
@@ -173,6 +202,7 @@ class ParkingNode(DTROS):
 
 
     def cbSwitch(self, fsm_switch_msg):
+        # Finite State Machine switches the parking node on or off
         was_inactive = (self.state == INACTIVE)
         becoming_active = fsm_switch_msg.data
 
@@ -188,7 +218,8 @@ class ParkingNode(DTROS):
 
 
     def cbParkingSpotDetected(self, msg):
-        # We only care about finding a spot if we're searching or exiting
+        # We only care about finding a spot if we're searching for a
+        # parking spot or exiting a parking spot
         if self.state not in [SEARCHING, EXITING_PARKING_SPOT]:
             return
 
@@ -346,7 +377,7 @@ class ParkingNode(DTROS):
         elif next_state == IS_PARKED:
             self.log('IS_PARKED')
             self.setLEDs('switchedoff') # Turn off LEDs while parked
-            self.manualLaneControl('stop')
+            self.manualLaneControl('stop') # Stop lane control commands while parked
 
         elif next_state == EXITING_PARKING_SPOT:
             self.waitForRandomTime('exiting')
@@ -366,38 +397,42 @@ class ParkingNode(DTROS):
             self.startNormalLaneFollowing() # Resume normal lane following
 
     
-    def waitingForRandomTime(self, wait_type='searching'):
+    def waitForRandomTime(self, wait_type='searching'):
         """
         Divide the maneuver time in slots of 20 seconds
-        so a duckiebot has to wait a random number of slots before efforting the maneuver.
-        The duckiebot that is going around the parking area searching for parking, stops only if it knows that
-        the one who want to exit can do the maneuver in the next 5 sec (time needed for the maneuver).
+        so a duckiebot has to wait a random number of slots before performing
+        the maneuver. The Duckiebot that is going around the parking area searching
+        for parking, stops only if it knows that the one who want to exit can do the
+        maneuver in the next 5 sec (time needed for the maneuver).
         """        
         secs = time.localtime().tm_sec
-        slot = secs // self.timeSlotExiting
-        delta = (slot + 1) * self.timeSlotExiting - secs
+        slot = secs // self.time_slot_exiting
+        delta = (slot + 1) * self.time_slot_exiting - secs
         rospy.log('Waiting a random time')
         if wait_type == 'exiting':
-            wait = random.randrange(1, 4) * self.timeSlotExiting + delta
-            rospy.log('[%s] wait before exiting', self.node_name)
+            wait = random.randrange(1, 4) * self.time_slot_exiting + delta
+            self.log('Wait before exiting')
             self.pauseOperations(wait)
         else:
-            slot_search = delta // self.timeSlotSearching
-            # stop only if it is in the first or in thte last time slot, because the car can go out
+            slot_search = delta // self.time_slot_searching
+            # stop only if it is in the first or in the last time slot,
+            # because the car can go out
             if slot_search == 0 or slot_search == 3:
-                self.pauseOperations(self.timeSlotSearching)
-                rospy.log('[%s] wait before going straight', self.node_name)
+                self.pauseOperations(self.time_slot_searching)
+                self.log('Wait before going straight')
             else:
-                rospy.log('[%s] can go straight', self.node_name)
+                self.log('Can go straight')
 
 
     def pauseOperations(self, num_sec):
+        # Pause lane control and parking for a few seconds
         self.log('Attempting to pause for %.1f seconds' % num_sec)
         self.pause_lane_control_pub.publish(num_sec)
         rospy.sleep(num_sec)
 
 
     def updateDoffset(self, new_offset):
+        # Change the d_offset of the lane controller
         self.log('Publishing new d_offset: %.3f' % new_offset)
         self.d_offset_pub.publish(new_offset)
 
@@ -423,6 +458,7 @@ class ParkingNode(DTROS):
 
 
     def toggleReversal(self, reverse):
+        # Turn on/off backwards lane following
         self.log('Settings reversal to %s' % reverse)
         msg = BoolStamped()
         msg.header.stamp = rospy.Time.now()
@@ -431,6 +467,7 @@ class ParkingNode(DTROS):
 
 
     def toggleLEDDetection(self, led_detection_right):
+        # Turn on/off LED detection
         self.log('Settings led_detection_right to %s' % led_detection_right)
         msg = BoolStamped()
         msg.header.stamp = rospy.Time.now()
@@ -439,6 +476,7 @@ class ParkingNode(DTROS):
 
 
     def pauseRedLineDetection(self, resume_after=2.0):
+        # Pause the detection of red lines for a few seconds
         self.log('Pausing red line detection for %.1f seconds' % resume_after)
         def _cb(e):
             self.ignore_red_lines = False
@@ -466,6 +504,8 @@ class ParkingNode(DTROS):
 
 
     def stopParkingModeFSM(self):
+        # Transitions the FSM state out of parking mode
+        self.log('Exiting FSM parking mode')
         msg = BoolStamped()
         msg.header.stamp = rospy.Time.now()
         msg.data = True

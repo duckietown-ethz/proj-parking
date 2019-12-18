@@ -1,4 +1,13 @@
 #!/usr/bin/env python
+
+"""
+This node is used by parking to detect LEDs of other
+Duckiebots. It works by using blob detection from OpenCV.
+The results are published as True if LEDs are detected
+and False otherwise; a debug image is also published
+and is viewable on rqt.
+"""
+
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import numpy as np
@@ -11,8 +20,19 @@ from duckietown_msgs.msg import BoolStamped
 from sensor_msgs.msg import CompressedImage, Image
 from std_msgs.msg import Float64
 
-WIDTH = 320
-HEIGHT = 240
+WIDTH = 320 # Width of the image
+HEIGHT = 240 # Height of the image
+
+# White threshold for cv2 binary thresholding
+WHITE_THRESHOLD = 235
+# Minimum area of blobs for the blob detector
+MIN_AREA = 1
+# Minimum circularity of blobs (1 = perfect circle)
+MIN_CIRCULARITY = 0.3
+
+# Cropping bounds for cropping images and performing blob detection
+RIGHT_CROP  =    (HEIGHT//2-40,  HEIGHT//2+30,   WIDTH//2,   WIDTH)
+LEFT_CROP   =    (HEIGHT//2-40,  HEIGHT//2+15,   0,          WIDTH//2)
 
 
 class LEDDetectionNode(object):
@@ -23,15 +43,7 @@ class LEDDetectionNode(object):
         self.veh_name = rospy.get_namespace().strip("/")
         self.bridge = CvBridge()
         self.active = True
-        self.config = self.setupParam("~config", "baseline")
-        self.publish_freq = self.setupParam("~publish_freq", 2.0)
-        self.publish_duration = rospy.Duration.from_sec(1.0/self.publish_freq)
-        self.last_stamp = rospy.Time.now()
-        self.frontorback = "back" #CHANGE TO CHECK BOTH!!#os.environ.get("FRONT_OR_BACK")
-        rospack = rospkg.RosPack()
-
         self.publish_circles = True
-
         self.look_right = False
 
         # Subscribers
@@ -65,26 +77,12 @@ class LEDDetectionNode(object):
         self.fx = self.intrinsics['K'][0][0]
         self.fy = self.intrinsics['K'][1][1]
         self.radialparam = self.intrinsics['D']
-        self.Midtold = 0
-        self.depthold = 0
-        self.Midtoldb = 0
-        self.deptholdb = 0
         self.time = rospy.get_rostime().to_sec()
-        self.timeb = rospy.get_rostime().to_sec()
 
 
     def bottomOfImage(self, full_image):
-        if self.look_right:
-            return full_image[HEIGHT//2-40:HEIGHT//2+30, WIDTH//2:WIDTH]
-        else:
-            return full_image[HEIGHT//2-40:HEIGHT//2+15,:WIDTH//2]
-
-
-    def setupParam(self, param_name, default_value):
-        value = rospy.get_param(param_name, default_value)
-        rospy.set_param(param_name, value)
-        rospy.loginfo("[%s] %s = %s " % (self.node_name, param_name, value))
-        return value
+        crop = RIGHT_CROP if self.look_right else LEFT_CROP
+        return full_image[crop[0]:crop[1], crop[2]:crop[3]]
 
 
     def cbSwitch(self, switch_msg):
@@ -98,8 +96,8 @@ class LEDDetectionNode(object):
 
 
     def undistort(self, keypoints):
-        #undistort radially
-        #section initUndistortRectifyMap from https://docs.opencv.org/2.4/modules/imgproc/doc/geometric_transformations.html
+        # undistort radially
+        # section initUndistortRectifyMap from https://docs.opencv.org/2.4/modules/imgproc/doc/geometric_transformations.html
         for key in keypoints:
             k1 = self.radialparam[0][0]
             k2 = self.radialparam[0][1]
@@ -138,7 +136,6 @@ class LEDDetectionNode(object):
             cv_image = self.bridge.compressed_imgmsg_to_cv2(msg_image)
             return cv_image
         except CvBridgeError as e:
-            # print(e)
             return []
 
 
@@ -147,7 +144,6 @@ class LEDDetectionNode(object):
             return
 
         img = self.bottomOfImage(self.readImage(image_msg))
-        # hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         cv_image_color = img
 
@@ -156,9 +152,7 @@ class LEDDetectionNode(object):
         cv_image_color = cv_image_color[cv_image_color.shape[0]/4:cv_image_color.shape[0]/4*3]
         cv_image_hsv = cv2.cvtColor(cv_image_color, cv2.COLOR_BGR2HSV)
         cv_image1 = cv2.cvtColor(cv_image_color, cv2.COLOR_BGR2GRAY)
-        #cv_image1 = cv_image1[cv_image1.shape[0]/4:cv_image1.shape[0]/4*3]
-
-        ret, cv_image = cv2.threshold(cv_image1, 231, 255, cv2.THRESH_BINARY)
+        ret, cv_image = cv2.threshold(cv_image1, WHITE_THRESHOLD, 255, cv2.THRESH_BINARY)
 
         # Set up the detector with default parameters.
         params = cv2.SimpleBlobDetector_Params()
@@ -170,11 +164,11 @@ class LEDDetectionNode(object):
 
         # Filter by Area
         params.filterByArea = True
-        params.minArea = 1
+        params.minArea = MIN_AREA
         params.filterByInertia = False
         params.filterByConvexity = False
         params.filterByCircularity = True
-        params.minCircularity = 0.3
+        params.minCircularity = MIN_CIRCULARITY
         detector = cv2.SimpleBlobDetector_create(params)
 
         # Detect blobs.
