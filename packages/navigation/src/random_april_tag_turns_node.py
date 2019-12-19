@@ -4,8 +4,8 @@
 import os
 import rospy
 import numpy
-from duckietown_msgs.msg import FSMState,TagInfo, AprilTagsWithInfos, BoolStamped, TurnIDandType
-from std_msgs.msg import String, Int16 #Imports msg
+from duckietown_msgs.msg import FSMState, TagInfo, AprilTagsWithInfos, BoolStamped, TurnIDandType
+from std_msgs.msg import String, Int16
 import math
 
 class RandomAprilTagTurnsNode(object):
@@ -28,6 +28,9 @@ class RandomAprilTagTurnsNode(object):
         #self.fsm_mode = None #TODO what is this?
         self.sub_topic_tag = rospy.Subscriber("~tag", AprilTagsWithInfos, self.cbTag, queue_size=1)
 
+        # Subscribe to the FSM logic gate switch for parking, to control how the Duckiebot
+        # will turn when it enters a parking intersection. If parking is on, it will turn
+        # into the parking area, otherwise it will avoid turning into the parking area.
         self.parking_search_sub = rospy.Subscriber(
             "/%s/parking_on" % self.veh,
             BoolStamped,
@@ -35,6 +38,7 @@ class RandomAprilTagTurnsNode(object):
             queue_size=1
         )
 
+        # Publish for each intersection, whether it is a parking intersection or a normal one.
         self.parking_intersection_pub = rospy.Publisher(
             "/%s/intersection_navigation_node/parking_intersection" % self.veh,
             BoolStamped,

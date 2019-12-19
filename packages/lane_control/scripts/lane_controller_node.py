@@ -1,4 +1,22 @@
 #!/usr/bin/env python
+
+"""
+As we encountered many problems with normal lane following
+during the implementation of parking, and because the original
+lane_controller_node.py is complex and somewhat unreadable,
+most of this file has been rewritten. The major changes are as follows:
+
+- Unused variables have been removed
+- Random comments have been removed
+- The code has been restructured to be more readable (same functionality)
+- Backwards lane following was added, with different controller parameters
+  when going backwards and the ability to switch backwards/forwards
+- The controller state is reset when the FSM mode changes (found to be more stable)
+- The controller's d_offset can be dynamically adjusted
+- The controller can be paused (rospy.sleep)
+- The controller can be forced to do hard-coded commands (e.g. right, left, straight)
+"""
+
 import os
 import math
 import time
