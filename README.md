@@ -7,7 +7,7 @@
 
 ## Demonstration
 
-<iframe src="https://player.vimeo.com/video/380507214" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+[![proj-parking-video](https://img.youtube.com/vi/3_6go5Y6DnM/0.jpg)](https://player.vimeo.com/video/380507214)
 
 ## Setup specifications
 
@@ -133,9 +133,7 @@ In other words, the parking node is active by default when this version is run, 
 ### Students
 
 * [Trevor Phillips](https://github.com/trevphil)
-
 * [Linus Lingg](https://github.com/Linus1994)
-
 * [Vincenzo Polizzi](https://github.com/viciopoli01)
 
 ### Mentors
